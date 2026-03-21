@@ -1,0 +1,16 @@
+{
+  "name": "StayFinder",
+  "short_name": "StayFinder",
+  "description": "Find and book hotels worldwide at the best prices",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#2563eb",
+  "icons": [
+    {
+      "src": "/vite.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}
