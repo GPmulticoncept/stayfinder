@@ -20,9 +20,9 @@ const FEATURES = [
 ];
 
 const HERO_IMAGES = [
-  'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=1200&q=80',
-  'https://images.unsplash.com/photo-1571896349842-33c89424de2d?w=1200&q=80',
-  'https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?w=1200&q=80',
+  'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=1400&q=85',
+  'https://images.unsplash.com/photo-1571896349842-33c89424de2d?w=1400&q=85',
+  'https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?w=1400&q=85',
 ];
 
 const getDateString = (offsetDays) => {
@@ -36,7 +36,6 @@ export default function Home() {
   const [heroImg] = useState(HERO_IMAGES[Math.floor(Math.random() * HERO_IMAGES.length)]);
   const destRef = useRef(null);
 
-  // Fix: use URL query params so SearchResults can read them correctly
   const handleDestClick = (dest) => {
     const params = new URLSearchParams({
       city: dest.city,
@@ -62,11 +61,13 @@ export default function Home() {
       <section className="home-hero" style={{ backgroundImage: `url(${heroImg})` }}>
         <div className="home-hero-overlay" />
         <div className="home-hero-content">
-          <span className="home-hero-badge">✨ 2M+ Hotels in 196 Countries</span>
+          <span className="home-hero-badge">✦ 2M+ Hotels · 196 Countries</span>
           <h1 className="home-hero-title">
-            Same Stays.<br /><span>Better Prices.</span>
+            Same Stays.<br /><em>Better Prices.</em>
           </h1>
-          <p className="home-hero-sub">Find and book the perfect hotel worldwide at the lowest rates.</p>
+          <p className="home-hero-sub">
+            Discover and book world-class hotels at rates you won't find anywhere else.
+          </p>
         </div>
         <div className="home-search-float">
           <SearchBar />
@@ -78,7 +79,7 @@ export default function Home() {
         <div className="home-section-head">
           <div>
             <h2>Popular Destinations</h2>
-            <p>Explore top travel spots around the world</p>
+            <p>Explore the world's most sought-after travel spots</p>
           </div>
           <div className="home-scroll-btns">
             <button onClick={() => scrollDest(-1)}>‹</button>
@@ -130,7 +131,7 @@ export default function Home() {
         <div className="home-section-head">
           <div>
             <h2>Why StayFinder?</h2>
-            <p>Everything you need to book the perfect stay</p>
+            <p>Everything you need for the perfect stay</p>
           </div>
         </div>
         <div className="home-features-grid">

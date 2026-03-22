@@ -1,5 +1,6 @@
-const WHATSAPP_NUMBER = '2347034542773';
+const WHATSAPP_NUMBER = '2348000000000';
 const WHATSAPP_MSG = encodeURIComponent('Hello, I need help with StayFinder.');
+const WHATSAPP_LIST = encodeURIComponent('Hello, I would like to list my property on StayFinder.');
 
 export default function Footer() {
   return (
@@ -15,25 +16,33 @@ export default function Footer() {
               Find and book hotels worldwide at the best prices.
               Over 2 million hotels across 196 countries.
             </p>
-            <p className="footer-tagline">Powered by GP Tech Studio</p>
+            <p className="footer-tagline">A GP Tech Studio product · GPmulticoncept Enterprises</p>
           </div>
 
           <div className="footer-col">
             <h4>Contact Us</h4>
-            <a href={`https://wa.me/${WHATSAPP_NUMBER}?text=${WHATSAPP_MSG}`} target="_blank" rel="noreferrer">
+            <a
+              href={`https://wa.me/${WHATSAPP_NUMBER}?text=${WHATSAPP_MSG}`}
+              target="_blank"
+              rel="noreferrer"
+            >
               💬 WhatsApp Support
             </a>
             <a href="mailto:haggai.enitan.dev@gmail.com">
               ✉️ Email Us
             </a>
-            <a href="#" onClick={(e) => e.preventDefault()}>
+            <a
+              href={`https://wa.me/${WHATSAPP_NUMBER}?text=${WHATSAPP_LIST}`}
+              target="_blank"
+              rel="noreferrer"
+            >
               🏠 List Your Property
             </a>
           </div>
         </div>
 
         <div className="footer-bottom">
-          <p>© {new Date().getFullYear()} StayFinder by GP Tech Studio · GPmulticoncept Enterprises. All rights reserved. Powered by LiteAPI.</p>
+          <p>© {new Date().getFullYear()} StayFinder by GP Tech Studio · GPmulticoncept Enterprises. All rights reserved.</p>
         </div>
       </div>
     </footer>

@@ -15,23 +15,25 @@ export default function HotelCard({ hotel, rate, searchParams }) {
 
   return (
     <div className="hotel-card" onClick={handleClick}>
-      {photo ? (
-        <img
-          src={photo}
-          alt={hotel.name}
-          className="hotel-card-img"
-          onError={(e) => { e.currentTarget.style.display = 'none'; }}
-        />
-      ) : (
-        <div className="hotel-card-img-placeholder">🏨</div>
-      )}
+      <div className="hotel-card-img-wrap">
+        {photo ? (
+          <img
+            src={photo}
+            alt={hotel.name}
+            className="hotel-card-img"
+            onError={(e) => { e.currentTarget.parentElement.innerHTML = '<div class="hotel-card-img-placeholder">🏨</div>'; }}
+          />
+        ) : (
+          <div className="hotel-card-img-placeholder">🏨</div>
+        )}
+        {hotel.reviewScore && (
+          <div className="hotel-card-rating-badge">{hotel.reviewScore}</div>
+        )}
+      </div>
 
       <div className="hotel-card-body">
         <div className="hotel-card-top">
           <h3 className="hotel-card-name">{hotel.name}</h3>
-          {hotel.reviewScore && (
-            <span className="hotel-rating">{hotel.reviewScore}</span>
-          )}
         </div>
 
         {stars > 0 && (
@@ -52,15 +54,14 @@ export default function HotelCard({ hotel, rate, searchParams }) {
               <>
                 <span className="price-label">From</span>
                 <span className="price-amount">
-                  {lowestPrice.currency} {parseFloat(lowestPrice.amount).toFixed(0)}
+                  {lowestPrice.currency} {parseFloat(lowestPrice.amount).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
                 </span>
-                <span className="price-per">/ night</span>
+                <span className="price-per">per night</span>
               </>
             ) : (
               <span className="price-tbd">View rates →</span>
             )}
           </div>
-
           <button className="view-btn">View →</button>
         </div>
       </div>
