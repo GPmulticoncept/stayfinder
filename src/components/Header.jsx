@@ -1,6 +1,8 @@
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 
 export default function Header() {
+  const navigate = useNavigate();
+
   return (
     <header className="header">
       <div className="header-inner">
@@ -11,13 +13,17 @@ export default function Header() {
 
         <nav className="header-nav">
           <Link to="/">Home</Link>
-          <a href="#">Deals</a>
-          <a href="#">Help</a>
+          <a href="#destinations">Destinations</a>
+          <a href="#features">Why Us</a>
         </nav>
 
         <div className="header-actions">
-          <button className="btn-outline">Sign In</button>
-          <button className="btn-primary">Register</button>
+          <button className="btn-outline" onClick={() => alert('Sign In coming in V2 — user auth will be added with Supabase.')}>
+            Sign In
+          </button>
+          <button className="btn-primary" onClick={() => alert('Registration coming in V2 — user auth will be added with Supabase.')}>
+            Register
+          </button>
         </div>
       </div>
     </header>

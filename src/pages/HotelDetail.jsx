@@ -11,6 +11,8 @@ export default function HotelDetail() {
   const [hotel, setHotel] = useState(state?.hotel || null);
   const [loading, setLoading] = useState(!state?.hotel);
   const [error, setError] = useState(null);
+  const [imgFailed, setImgFailed] = useState(false);
+  const [toastVisible, setToastVisible] = useState(false);
 
   const rate = state?.rate || null;
   const searchParams = state?.searchParams || {};
@@ -31,15 +33,21 @@ export default function HotelDetail() {
     fetchDetail();
   }, [hotelId]);
 
+  const handleBookNow = () => {
+    setToastVisible(true);
+    setTimeout(() => setToastVisible(false), 4000);
+  };
+
   if (loading) return <LoadingSpinner text="Loading hotel details..." />;
 
   if (error || !hotel) {
     return (
-      <div className="container" style={{ paddingTop: 40 }}>
-        <div className="no-results">
-          <div className="no-results-icon">⚠️</div>
+      <div className="detail-error-wrap">
+        <div className="detail-error-card">
+          <span className="detail-error-icon">⚠️</span>
           <h3>Hotel not found</h3>
-          <button className="try-again-btn" onClick={() => navigate('/')}>Go Home</button>
+          <p>We couldn't load this property. Try going back and searching again.</p>
+          <button className="detail-home-btn" onClick={() => navigate('/')}>Back to Home</button>
         </div>
       </div>
     );
@@ -53,100 +61,116 @@ export default function HotelDetail() {
 
   return (
     <div className="detail-page">
-      <div className="container">
-        <button className="detail-back" onClick={() => navigate(-1)}>
-          ← Back to results
-        </button>
 
-        {photo ? (
+      {/* TOAST NOTIFICATION */}
+      <div className={`booking-toast ${toastVisible ? 'booking-toast--visible' : ''}`}>
+        <span className="booking-toast-icon">🎉</span>
+        <div className="booking-toast-text">
+          <strong>Room selected!</strong>
+          <p>Booking & payment integration coming in V2.</p>
+        </div>
+        <button className="booking-toast-close" onClick={() => setToastVisible(false)}>✕</button>
+      </div>
+
+      {/* HERO */}
+      <div className="detail-hero-wrap">
+        {photo && !imgFailed ? (
           <img
             src={photo}
             alt={hotel.name}
             className="detail-hero-img"
-            onError={(e) => { e.currentTarget.style.display = 'none'; }}
+            onError={() => setImgFailed(true)}
           />
         ) : (
-          <div className="detail-img-placeholder">🏨</div>
+          <div className="detail-hero-placeholder">🏨</div>
         )}
+        <div className="detail-hero-overlay" />
+        <button className="detail-back-btn" onClick={() => navigate(-1)}>← Back</button>
+        <div className="detail-hero-info">
+          <h1 className="detail-hero-name">{hotel.name}</h1>
+          {stars > 0 && (
+            <div className="detail-hero-stars">
+              {Array.from({ length: Math.min(stars, 5) }).map((_, i) => (
+                <span key={i}>★</span>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
 
-        <div className="detail-header">
-          <div>
-            <h1>{hotel.name}</h1>
-            {stars > 0 && (
-              <div className="detail-stars">
-                {Array.from({ length: Math.min(stars, 5) }).map((_, i) => (
-                  <span key={i} className="star" style={{ fontSize: '1.1rem' }}>★</span>
-                ))}
-              </div>
-            )}
-          </div>
+      {/* CONTENT */}
+      <div className="detail-content">
+
+        <div className="detail-meta-row">
+          {address && <p className="detail-address"><span>📍</span> {address}</p>}
           {hotel.reviewScore && (
-            <div className="hotel-rating" style={{ fontSize: '1.1rem', padding: '8px 16px' }}>
-              {hotel.reviewScore} / 10
+            <div className="detail-score">
+              <span className="detail-score-num">{hotel.reviewScore}</span>
+              <span className="detail-score-label">/ 10</span>
             </div>
           )}
         </div>
 
-        {address && <p className="detail-location">📍 {address}</p>}
+        <div className="detail-divider" />
 
         {description ? (
-          <p className="detail-description">
-            {description.length > 600 ? description.slice(0, 600) + '...' : description}
-          </p>
+          <div className="detail-desc-wrap">
+            <h2 className="detail-section-title">About this property</h2>
+            <div
+              className="detail-description"
+              dangerouslySetInnerHTML={{ __html: description }}
+            />
+          </div>
         ) : null}
 
-        <div className="rooms-section">
-          <h2>{rooms.length > 0 ? 'Available Rooms' : 'Room Information'}</h2>
+        <div className="detail-rooms-wrap">
+          <h2 className="detail-section-title">
+            {rooms.length > 0 ? `Available Rooms (${rooms.length})` : 'Room Information'}
+          </h2>
 
           {rooms.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '40px 16px', color: 'var(--text-secondary)' }}>
-              <p>No rooms available for your selected dates.</p>
+            <div className="detail-no-rooms">
+              <span className="detail-no-rooms-icon">🛏️</span>
+              <p className="detail-no-rooms-msg">No rooms available for your selected dates.</p>
               {searchParams.checkin && (
-                <p style={{ marginTop: 8, fontSize: '0.875rem' }}>
+                <p className="detail-no-rooms-dates">
                   {searchParams.checkin} → {searchParams.checkout}
                 </p>
               )}
-              <button
-                className="try-again-btn"
-                style={{ marginTop: 16 }}
-                onClick={() => navigate(-1)}
-              >
+              <button className="detail-alt-btn" onClick={() => navigate(-1)}>
                 See Other Hotels
               </button>
             </div>
           ) : (
-            rooms.map((room, i) => {
-              const firstRate = room.rates?.[0];
-              const price = firstRate?.retailRate?.total?.[0];
-              return (
-                <div key={i} className="room-card">
-                  <div>
-                    <p className="room-name">{room.name || `Room Type ${i + 1}`}</p>
-                    <p className="room-info">
-                      {firstRate?.boardType || 'Room Only'} · Max {firstRate?.maxOccupancy || 2} guests
-                    </p>
-                  </div>
-
-                  {price && (
-                    <div className="room-price">
-                      <span className="amount">
-                        {price.currency} {parseFloat(price.amount).toFixed(0)}
-                      </span>
-                      <span className="per">per night</span>
+            <div className="detail-rooms-list">
+              {rooms.map((room, i) => {
+                const firstRate = room.rates?.[0];
+                const price = firstRate?.retailRate?.total?.[0];
+                return (
+                  <div key={i} className="detail-room-card">
+                    <div className="detail-room-info">
+                      <p className="detail-room-name">{room.name || `Room Type ${i + 1}`}</p>
+                      <p className="detail-room-meta">
+                        {firstRate?.boardType || 'Room Only'} &middot; Max {firstRate?.maxOccupancy || 2} guests
+                      </p>
                     </div>
-                  )}
-
-                  <button
-                    className="book-btn"
-                    onClick={() =>
-                      alert('Booking flow coming in V2! Payment integration will complete this step.')
-                    }
-                  >
-                    Book Now
-                  </button>
-                </div>
-              );
-            })
+                    <div className="detail-room-right">
+                      {price && (
+                        <div className="detail-room-price">
+                          <span className="detail-price-amount">
+                            {price.currency} {parseFloat(price.amount).toLocaleString()}
+                          </span>
+                          <span className="detail-price-per">per night</span>
+                        </div>
+                      )}
+                      <button className="detail-book-btn" onClick={handleBookNow}>
+                        Book Now
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           )}
         </div>
       </div>
