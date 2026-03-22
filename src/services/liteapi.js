@@ -14,9 +14,11 @@ const postHeaders = () => ({
   'Accept': 'application/json',
 });
 
-export const searchHotels = async ({ countryCode, limit = 30 }) => {
+export const searchHotels = async ({ countryCode, cityName, limit = 30 }) => {
   try {
-    const params = new URLSearchParams({ countryCode, limit: String(limit) });
+    const query = { countryCode, limit: String(limit) };
+    if (cityName && cityName.trim()) query.cityName = cityName.trim();
+    const params = new URLSearchParams(query);
     const res = await fetch(`${BASE_URL}/data/hotels?${params}`, { headers: getHeaders() });
     if (!res.ok) {
       console.error('searchHotels HTTP error:', res.status, res.statusText);

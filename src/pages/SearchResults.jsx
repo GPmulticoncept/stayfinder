@@ -47,7 +47,7 @@ export default function SearchResults() {
         setHotels([]);
         setRates({});
 
-        const hotelList = await searchHotels({ countryCode, limit: 30 });
+        const hotelList = await searchHotels({ countryCode, cityName: city, limit: 30 });
 
         if (!hotelList || hotelList.length === 0) {
           setLoading(false);
