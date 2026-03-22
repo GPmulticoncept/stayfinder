@@ -18,10 +18,10 @@ export default function Header() {
         </nav>
 
         <div className="header-actions">
-          <button className="btn-outline" onClick={() => alert('Sign In coming in V2 — user auth will be added with Supabase.')}>
+          <button className="btn-outline" onClick={() => {}}>
             Sign In
           </button>
-          <button className="btn-primary" onClick={() => alert('Registration coming in V2 — user auth will be added with Supabase.')}>
+          <button className="btn-primary" onClick={() => {}}>
             Register
           </button>
         </div>
