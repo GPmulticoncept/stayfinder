@@ -1,12 +1,20 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 
+// Replace with your actual WhatsApp number (no + or spaces)
+const WHATSAPP_NUMBER = '2347034542773';
+const WHATSAPP_MSG = encodeURIComponent('Hello, I would like to list my property on StayFinder.');
+
 export default function Header() {
   const [toast, setToast] = useState('');
 
   const showToast = (msg) => {
     setToast(msg);
     setTimeout(() => setToast(''), 3500);
+  };
+
+  const handleListProperty = () => {
+    window.open(`https://wa.me/${WHATSAPP_NUMBER}?text=${WHATSAPP_MSG}`, '_blank');
   };
 
   return (
@@ -29,17 +37,8 @@ export default function Header() {
         </nav>
 
         <div className="header-actions">
-          <button
-            className="btn-outline"
-            onClick={() => showToast('Sign In coming in V2 — powered by Supabase.')}
-          >
-            Sign In
-          </button>
-          <button
-            className="btn-primary"
-            onClick={() => showToast('Registration coming in V2 — powered by Supabase.')}
-          >
-            Register
+          <button className="btn-list-property" onClick={handleListProperty}>
+            🏠 List Your Property
           </button>
         </div>
       </div>

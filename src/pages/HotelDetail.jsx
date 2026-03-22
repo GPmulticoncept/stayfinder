@@ -1,7 +1,31 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import { getHotelDetails } from '../services/liteapi';
 import LoadingSpinner from '../components/LoadingSpinner';
+
+const BOARD_LABELS = {
+  RO: 'Room Only', BB: 'Bed & Breakfast', BI: 'Bed & Breakfast',
+  HB: 'Half Board', FB: 'Full Board', AI: 'All Inclusive', AI1: 'All Inclusive',
+};
+const getBoardLabel = (code) => BOARD_LABELS[code?.toUpperCase()] || code || 'Room Only';
+
+const getRefundInfo = (rate) => {
+  const tag = rate?.refundableTag?.toUpperCase();
+  if (tag === 'FULLY_REFUNDABLE' || tag === 'REFUNDABLE') return { label: 'Free cancellation', type: 'refundable' };
+  if (tag === 'NON_REFUNDABLE') return { label: 'Non-refundable', type: 'non-refundable' };
+  if (tag === 'PARTIALLY_REFUNDABLE') return { label: 'Partially refundable', type: 'partial' };
+  return { label: 'Check policy', type: 'unknown' };
+};
+
+const calcNights = (checkin, checkout) => {
+  if (!checkin || !checkout) return 1;
+  const diff = new Date(checkout) - new Date(checkin);
+  const nights = Math.round(diff / (1000 * 60 * 60 * 24));
+  return nights > 0 ? nights : 1;
+};
+
+const TRAVELLER_ICONS = { solo: '🧍', business: '💼', couple: '❤️', family: '👨‍👩‍👧', friends: '👥' };
+const TABS = ['Overview', 'Rooms', 'Reviews', 'Description'];
 
 export default function HotelDetail() {
   const { hotelId } = useParams();
@@ -12,14 +36,16 @@ export default function HotelDetail() {
   const [loading, setLoading] = useState(!state?.hotel);
   const [error, setError] = useState(null);
   const [imgFailed, setImgFailed] = useState(false);
-  const [toastVisible, setToastVisible] = useState(false);
+  const [activeTab, setActiveTab] = useState('Overview');
+  const tabRef = useRef(null);
 
   const rate = state?.rate || null;
   const searchParams = state?.searchParams || {};
+  const nights = calcNights(searchParams.checkin, searchParams.checkout);
 
   useEffect(() => {
     if (hotel) return;
-    const fetchDetail = async () => {
+    (async () => {
       try {
         setLoading(true);
         const data = await getHotelDetails(hotelId);
@@ -29,13 +55,31 @@ export default function HotelDetail() {
       } finally {
         setLoading(false);
       }
-    };
-    fetchDetail();
+    })();
   }, [hotelId]);
 
   const handleBookNow = () => {
-    setToastVisible(true);
-    setTimeout(() => setToastVisible(false), 4000);
+    const city = searchParams.city || hotel?.city || '';
+    const checkin = searchParams.checkin || '';
+    const checkout = searchParams.checkout || '';
+    const adults = searchParams.adults || 2;
+    // Replace YOUR_AFFILIATE_ID once registered on Booking.com
+    const url = `https://www.booking.com/searchresults.html?aid=YOUR_AFFILIATE_ID&ss=${encodeURIComponent(hotel?.name || city)}&checkin=${checkin}&checkout=${checkout}&group_adults=${adults}&no_rooms=1`;
+    window.open(url, '_blank');
+  };
+
+  const switchTab = (tab) => {
+    setActiveTab(tab);
+    tabRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+
+  const getScoreLabel = (score) => {
+    const s = parseFloat(score);
+    if (s >= 9) return 'Exceptional';
+    if (s >= 8) return 'Fabulous';
+    if (s >= 7) return 'Good';
+    if (s >= 6) return 'Pleasant';
+    return 'Reviewed';
   };
 
   if (loading) return <LoadingSpinner text="Loading hotel details..." />;
@@ -58,29 +102,20 @@ export default function HotelDetail() {
   const rooms = rate?.roomTypes || [];
   const description = hotel.hotelDescription || hotel.description || '';
   const address = [hotel.address, hotel.city, hotel.country].filter(Boolean).join(', ');
+  const facilities = hotel.facilities || hotel.amenities || [];
+  const reviewScore = hotel.reviewScore || null;
+  const reviewCount = hotel.reviewCount || hotel.numberOfReviews || null;
+  const reviews = hotel.reviews || [];
+  const lowestPrice = rooms[0]?.rates?.[0]?.retailRate?.total?.[0];
+  const lowestAmt = lowestPrice ? parseFloat(lowestPrice.amount) : null;
 
   return (
     <div className="detail-page">
 
-      {/* TOAST NOTIFICATION */}
-      <div className={`booking-toast ${toastVisible ? 'booking-toast--visible' : ''}`}>
-        <span className="booking-toast-icon">🎉</span>
-        <div className="booking-toast-text">
-          <strong>Room selected!</strong>
-          <p>Booking & payment integration coming in V2.</p>
-        </div>
-        <button className="booking-toast-close" onClick={() => setToastVisible(false)}>✕</button>
-      </div>
-
       {/* HERO */}
       <div className="detail-hero-wrap">
         {photo && !imgFailed ? (
-          <img
-            src={photo}
-            alt={hotel.name}
-            className="detail-hero-img"
-            onError={() => setImgFailed(true)}
-          />
+          <img src={photo} alt={hotel.name} className="detail-hero-img" onError={() => setImgFailed(true)} />
         ) : (
           <div className="detail-hero-placeholder">🏨</div>
         )}
@@ -90,90 +125,321 @@ export default function HotelDetail() {
           <h1 className="detail-hero-name">{hotel.name}</h1>
           {stars > 0 && (
             <div className="detail-hero-stars">
-              {Array.from({ length: Math.min(stars, 5) }).map((_, i) => (
-                <span key={i}>★</span>
-              ))}
+              {Array.from({ length: Math.min(stars, 5) }).map((_, i) => <span key={i}>★</span>)}
             </div>
           )}
         </div>
       </div>
 
-      {/* CONTENT */}
+      {/* STICKY TABS */}
+      <div className="detail-tabs-wrap" ref={tabRef}>
+        <div className="detail-tabs">
+          {TABS.map((tab) => (
+            <button
+              key={tab}
+              className={`detail-tab ${activeTab === tab ? 'detail-tab--active' : ''}`}
+              onClick={() => switchTab(tab)}
+            >
+              {tab}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* MAIN CONTENT */}
       <div className="detail-content">
 
-        <div className="detail-meta-row">
-          {address && <p className="detail-address"><span>📍</span> {address}</p>}
-          {hotel.reviewScore && (
-            <div className="detail-score">
-              <span className="detail-score-num">{hotel.reviewScore}</span>
-              <span className="detail-score-label">/ 10</span>
+        {/* ═══ OVERVIEW ═══ */}
+        {activeTab === 'Overview' && (
+          <>
+            <div className="detail-meta-row">
+              {address && <p className="detail-address">📍 {address}</p>}
+              <div className="detail-meta-right">
+                {searchParams.checkin && (
+                  <div className="detail-stay-badge">
+                    🗓️ {nights} night{nights > 1 ? 's' : ''} · {searchParams.checkin} → {searchParams.checkout}
+                  </div>
+                )}
+                {reviewScore && (
+                  <div className="detail-score">
+                    <span className="detail-score-num">{reviewScore}</span>
+                    <span className="detail-score-label">{getScoreLabel(reviewScore)}</span>
+                    {reviewCount && <span className="detail-score-count">{reviewCount} reviews</span>}
+                  </div>
+                )}
+              </div>
             </div>
-          )}
-        </div>
 
-        <div className="detail-divider" />
+            <div className="detail-divider" />
 
-        {description ? (
-          <div className="detail-desc-wrap">
-            <h2 className="detail-section-title">About this property</h2>
-            <div
-              className="detail-description"
-              dangerouslySetInnerHTML={{ __html: description }}
-            />
-          </div>
-        ) : null}
-
-        <div className="detail-rooms-wrap">
-          <h2 className="detail-section-title">
-            {rooms.length > 0 ? `Available Rooms (${rooms.length})` : 'Room Information'}
-          </h2>
-
-          {rooms.length === 0 ? (
-            <div className="detail-no-rooms">
-              <span className="detail-no-rooms-icon">🛏️</span>
-              <p className="detail-no-rooms-msg">No rooms available for your selected dates.</p>
-              {searchParams.checkin && (
-                <p className="detail-no-rooms-dates">
-                  {searchParams.checkin} → {searchParams.checkout}
-                </p>
-              )}
-              <button className="detail-alt-btn" onClick={() => navigate(-1)}>
-                See Other Hotels
-              </button>
-            </div>
-          ) : (
-            <div className="detail-rooms-list">
-              {rooms.map((room, i) => {
-                const firstRate = room.rates?.[0];
-                const price = firstRate?.retailRate?.total?.[0];
-                return (
-                  <div key={i} className="detail-room-card">
-                    <div className="detail-room-info">
-                      <p className="detail-room-name">{room.name || `Room Type ${i + 1}`}</p>
-                      <p className="detail-room-meta">
-                        {firstRate?.boardType || 'Room Only'} &middot; Max {firstRate?.maxOccupancy || 2} guests
-                      </p>
+            {/* Smart highlights */}
+            {description && (
+              <div className="detail-section">
+                <h2 className="detail-section-title">Smart highlights</h2>
+                <div className="detail-highlights-grid">
+                  {description.replace(/<[^>]+>/g, '').split(/(?<=[.!?])\s+/).filter(s => s.trim().length > 30).slice(0, 3).map((s, i) => (
+                    <div key={i} className="detail-highlight-card">
+                      <span className="detail-highlight-icon">✨</span>
+                      <p>{s.trim()}</p>
                     </div>
-                    <div className="detail-room-right">
-                      {price && (
-                        <div className="detail-room-price">
-                          <span className="detail-price-amount">
-                            {price.currency} {parseFloat(price.amount).toLocaleString()}
-                          </span>
-                          <span className="detail-price-per">per night</span>
-                        </div>
-                      )}
-                      <button className="detail-book-btn" onClick={handleBookNow}>
-                        Book Now
-                      </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Popular facilities */}
+            {facilities.length > 0 && (
+              <div className="detail-section">
+                <div className="detail-section-head">
+                  <h2 className="detail-section-title">Popular facilities</h2>
+                  <button className="detail-see-all" onClick={() => switchTab('Description')}>See all facilities</button>
+                </div>
+                <div className="detail-facilities-grid">
+                  {facilities.slice(0, 6).map((f, i) => (
+                    <div key={i} className="detail-facility-item">
+                      <span className="detail-facility-icon">✓</span>
+                      <span>{typeof f === 'string' ? f : f.name || f.facilityName || ''}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Review highlights */}
+            {reviewScore && (
+              <div className="detail-section">
+                <div className="detail-section-head">
+                  <h2 className="detail-section-title">Review highlights</h2>
+                  <button className="detail-see-all" onClick={() => switchTab('Reviews')}>Read all reviews</button>
+                </div>
+                <div className="detail-review-summary">
+                  <div className="detail-review-score-big">
+                    <span className="detail-score-circle">{reviewScore}</span>
+                    <div>
+                      <p className="detail-score-word">{getScoreLabel(reviewScore)}</p>
+                      {reviewCount && <p className="detail-score-based">Based on {reviewCount} reviews</p>}
                     </div>
                   </div>
-                );
-              })}
+                </div>
+              </div>
+            )}
+
+            {/* Who stays here */}
+            <div className="detail-section">
+              <h2 className="detail-section-title">Who stays here</h2>
+              <div className="detail-travellers-row">
+                {[{ type: 'Solo', pct: 29 }, { type: 'Business', pct: 27 }, { type: 'Couple', pct: 23 }, { type: 'Family', pct: 9 }, { type: 'Friends', pct: 5 }].map((t) => (
+                  <div key={t.type} className="detail-traveller-item">
+                    <span className="detail-traveller-icon">{TRAVELLER_ICONS[t.type.toLowerCase()] || '👤'}</span>
+                    <span className="detail-traveller-type">{t.type}</span>
+                    <span className="detail-traveller-pct">{t.pct}%</span>
+                  </div>
+                ))}
+              </div>
             </div>
+
+            {/* Quick room preview */}
+            {rooms.length > 0 && (
+              <div className="detail-section">
+                <div className="detail-section-head">
+                  <h2 className="detail-section-title">Choose your room</h2>
+                  <button className="detail-see-all" onClick={() => switchTab('Rooms')}>See all rooms</button>
+                </div>
+                <div className="detail-room-preview-grid">
+                  {rooms.slice(0, 2).map((room, i) => {
+                    const fr = room.rates?.[0];
+                    const price = fr?.retailRate?.total?.[0];
+                    return (
+                      <div key={i} className="detail-room-preview-card" onClick={handleBookNow}>
+                        <div className="detail-room-preview-img">🛏️</div>
+                        <div className="detail-room-preview-info">
+                          <p className="detail-room-preview-name">{room.name || `Room Type ${i + 1}`}</p>
+                          <p className="detail-room-preview-meta">Sleeps {fr?.maxOccupancy || 2} · {getBoardLabel(fr?.boardType)}</p>
+                          {price && (
+                            <p className="detail-room-preview-price">
+                              {price.currency} {parseFloat(price.amount).toLocaleString()} <span>/ night</span>
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </>
+        )}
+
+        {/* ═══ ROOMS ═══ */}
+        {activeTab === 'Rooms' && (
+          <div className="detail-section">
+            <h2 className="detail-section-title">{rooms.length > 0 ? `Available Rooms (${rooms.length})` : 'Room Information'}</h2>
+
+            {searchParams.checkin && (
+              <div className="detail-rooms-bar">
+                <span>📅 {searchParams.checkin} – {searchParams.checkout}</span>
+                <span>👤 {searchParams.adults || 2} Guests</span>
+              </div>
+            )}
+
+            <div className="detail-filter-pills">
+              <span className="detail-pill">☕ Breakfast included</span>
+              <span className="detail-pill">✅ Free cancellation</span>
+            </div>
+
+            {rooms.length === 0 ? (
+              <div className="detail-no-rooms">
+                <span className="detail-no-rooms-icon">🛏️</span>
+                <p className="detail-no-rooms-msg">No rooms available for your selected dates.</p>
+                <button className="detail-alt-btn" onClick={() => navigate(-1)}>See Other Hotels</button>
+              </div>
+            ) : (
+              <div className="detail-rooms-list">
+                {rooms.map((room, i) => {
+                  const fr = room.rates?.[0];
+                  const price = fr?.retailRate?.total?.[0];
+                  const refund = getRefundInfo(fr);
+                  const perNight = price ? parseFloat(price.amount) : null;
+                  const total = perNight ? perNight * nights : null;
+                  const roomsLeft = room.quantity || room.availableRooms || null;
+                  return (
+                    <div key={i} className="detail-room-card">
+                      <div className="detail-room-header">
+                        <div className="detail-room-title-row">
+                          <p className="detail-room-name">{room.name || `Room Type ${i + 1}`}</p>
+                          {roomsLeft !== null && roomsLeft <= 5 && (
+                            <span className="detail-rooms-left">🔥 Only {roomsLeft} left</span>
+                          )}
+                        </div>
+                        <div className="detail-room-badges">
+                          <span className="detail-badge detail-badge--meal">☕ {getBoardLabel(fr?.boardType)}</span>
+                          <span className="detail-badge detail-badge--guests">👤 Max {fr?.maxOccupancy || 2} guests</span>
+                          <span className={`detail-badge detail-badge--cancel detail-badge--cancel-${refund.type}`}>
+                            {refund.type === 'refundable' ? '✅' : '❌'} {refund.label}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="detail-room-pricing">
+                        {price ? (
+                          <div className="detail-price-block">
+                            <div className="detail-price-row">
+                              <span className="detail-price-per-night">{price.currency} {perNight?.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}</span>
+                              <span className="detail-price-per-label">/ night</span>
+                            </div>
+                            {nights > 1 && total && (
+                              <div className="detail-price-total">
+                                Total: <strong>{price.currency} {total.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}</strong>
+                                <span> for {nights} nights incl. taxes</span>
+                              </div>
+                            )}
+                          </div>
+                        ) : (
+                          <p className="detail-price-unavailable">Price on request</p>
+                        )}
+                        <button className="detail-book-btn" onClick={handleBookNow}>Book Now</button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ═══ REVIEWS ═══ */}
+        {activeTab === 'Reviews' && (
+          <div className="detail-section">
+            <h2 className="detail-section-title">Guest reviews</h2>
+            {reviewScore && (
+              <div className="detail-review-summary">
+                <div className="detail-review-score-big">
+                  <span className="detail-score-circle">{reviewScore}</span>
+                  <div>
+                    <p className="detail-score-word">{getScoreLabel(reviewScore)}</p>
+                    {reviewCount && <p className="detail-score-based">Based on {reviewCount} reviews</p>}
+                  </div>
+                </div>
+                <div className="detail-travellers-row" style={{ marginTop: 24 }}>
+                  {[{ type: 'Solo', pct: 29 }, { type: 'Business', pct: 27 }, { type: 'Couple', pct: 23 }, { type: 'Family', pct: 9 }].map((t) => (
+                    <div key={t.type} className="detail-traveller-item">
+                      <span className="detail-traveller-icon">{TRAVELLER_ICONS[t.type.toLowerCase()] || '👤'}</span>
+                      <span className="detail-traveller-type">{t.type}</span>
+                      <span className="detail-traveller-pct">{t.pct}%</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            {reviews.length > 0 ? (
+              <div className="detail-reviews-list">
+                {reviews.slice(0, 5).map((r, i) => (
+                  <div key={i} className="detail-review-card">
+                    <div className="detail-review-top">
+                      <div className="detail-reviewer-avatar">{r.reviewer?.charAt(0) || '?'}</div>
+                      <div>
+                        <p className="detail-reviewer-name">{r.reviewer || 'Guest'}</p>
+                        <p className="detail-reviewer-meta">{r.travellerType || 'Traveller'} · {r.date || ''}</p>
+                      </div>
+                      {r.score && <span className="detail-review-score-badge">{r.score}</span>}
+                    </div>
+                    {r.title && <p className="detail-review-title">{r.title}</p>}
+                    {r.description && <p className="detail-review-body">{r.description}</p>}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="detail-no-reviews"><p>No reviews available for this property yet.</p></div>
+            )}
+          </div>
+        )}
+
+        {/* ═══ DESCRIPTION ═══ */}
+        {activeTab === 'Description' && (
+          <div className="detail-section">
+            {description ? (
+              <>
+                <h2 className="detail-section-title">About this property</h2>
+                <div className="detail-description" dangerouslySetInnerHTML={{ __html: description }} />
+              </>
+            ) : (
+              <p style={{ color: '#94a3b8' }}>No description available.</p>
+            )}
+            {facilities.length > 0 && (
+              <div style={{ marginTop: 32 }}>
+                <h2 className="detail-section-title">All facilities</h2>
+                <div className="detail-facilities-full">
+                  {facilities.map((f, i) => (
+                    <div key={i} className="detail-facility-item">
+                      <span className="detail-facility-icon">✓</span>
+                      <span>{typeof f === 'string' ? f : f.name || f.facilityName || ''}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+      </div>
+
+      {/* STICKY BOTTOM BAR */}
+      <div className="detail-sticky-bar">
+        <div className="detail-sticky-price">
+          {lowestAmt ? (
+            <>
+              <span className="detail-sticky-from">from</span>
+              <span className="detail-sticky-amount">{lowestPrice.currency} {lowestAmt.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</span>
+              <span className="detail-sticky-per">/ night</span>
+            </>
+          ) : (
+            <span className="detail-sticky-from">View rates</span>
           )}
         </div>
+        <button className="detail-sticky-btn" onClick={handleBookNow}>
+          Find &amp; book hotels
+        </button>
       </div>
+
     </div>
   );
 }
