@@ -51,6 +51,3 @@ export const getHotelDetails = async (hotelId) => {
     return null;
   }
 };
-EO
-EO
-EOf
