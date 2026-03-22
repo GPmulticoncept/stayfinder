@@ -2,8 +2,20 @@ import { useEffect, useState } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { searchHotels, getHotelRates } from '../services/liteapi';
 import HotelCard from '../components/HotelCard';
-import LoadingSpinner from '../components/LoadingSpinner';
 import SearchBar from '../components/SearchBar';
+
+function SkeletonCard() {
+  return (
+    <div className="skeleton-card">
+      <div className="skeleton-img" />
+      <div className="skeleton-body">
+        <div className="skeleton-line wide" />
+        <div className="skeleton-line medium" />
+        <div className="skeleton-line short" />
+      </div>
+    </div>
+  );
+}
 
 export default function SearchResults() {
   const [searchParams] = useSearchParams();
@@ -23,8 +35,7 @@ export default function SearchResults() {
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    if (!city || !checkin || !checkout) return;
-
+    if (!checkin || !checkout) return;
     const run = async () => {
       try {
         setLoading(true);
@@ -35,7 +46,6 @@ export default function SearchResults() {
         const hotelList = await searchHotels({ countryCode, cityName: city, limit: 30 });
 
         if (!hotelList || hotelList.length === 0) {
-          setHotels([]);
           setLoading(false);
           return;
         }
@@ -45,23 +55,15 @@ export default function SearchResults() {
 
         setLoadingRates(true);
         const hotelIds = hotelList.slice(0, 20).map((h) => h.id);
-
         const rateData = await getHotelRates({
-          hotelIds,
-          checkin,
-          checkout,
-          adults,
-          currency,
+          hotelIds, checkin, checkout, adults, currency,
           guestNationality: countryCode,
         });
 
         const rateMap = {};
         if (Array.isArray(rateData)) {
-          rateData.forEach((r) => {
-            if (r.hotelId) rateMap[r.hotelId] = r;
-          });
+          rateData.forEach((r) => { if (r.hotelId) rateMap[r.hotelId] = r; });
         }
-
         setRates(rateMap);
         setLoadingRates(false);
       } catch (err) {
@@ -71,7 +73,6 @@ export default function SearchResults() {
         setLoadingRates(false);
       }
     };
-
     run();
   }, [city, countryCode, checkin, checkout, adults, currency]);
 
@@ -87,7 +88,15 @@ export default function SearchResults() {
 
       <div className="container">
         {loading ? (
-          <LoadingSpinner text={`Searching hotels in ${city}...`} />
+          <>
+            <div className="results-header">
+              <div className="skeleton-line wide" style={{ height: 28, marginBottom: 8 }} />
+              <div className="skeleton-line medium" style={{ height: 16 }} />
+            </div>
+            <div className="results-grid">
+              {Array.from({ length: 6 }).map((_, i) => <SkeletonCard key={i} />)}
+            </div>
+          </>
         ) : error ? (
           <div className="no-results">
             <div className="no-results-icon">⚠️</div>
