@@ -7,9 +7,9 @@ const headers = () => ({
   Accept: 'application/json',
 });
 
-export const searchHotels = async ({ countryCode, limit = 30 }) => {
+export const searchHotels = async ({ countryCode, cityName, limit = 30 }) => {
   try {
-    const params = new URLSearchParams({ countryCode, limit: String(limit) });
+    const params = new URLSearchParams({ countryCode, ...(cityName && { cityName }), limit: String(limit) });
     const res = await fetch(`${BASE_URL}/data/hotels?${params}`, { headers: headers() });
     const data = await res.json();
     return data.data || [];
