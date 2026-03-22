@@ -25,35 +25,28 @@ const HERO_IMAGES = [
   'https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?w=1200&q=80',
 ];
 
+const getDateString = (offsetDays) => {
+  const d = new Date();
+  d.setDate(d.getDate() + offsetDays);
+  return d.toISOString().split('T')[0];
+};
+
 export default function Home() {
   const navigate = useNavigate();
   const [heroImg] = useState(HERO_IMAGES[Math.floor(Math.random() * HERO_IMAGES.length)]);
   const destRef = useRef(null);
 
+  // Fix: use URL query params so SearchResults can read them correctly
   const handleDestClick = (dest) => {
-    navigate('/search', {
-      state: {
-        searchParams: {
-          countryCode: dest.code,
-          checkin: getTomorrow(),
-          checkout: getDayAfter(),
-          adults: 2,
-          currency: 'USD',
-        }
-      }
+    const params = new URLSearchParams({
+      city: dest.city,
+      countryCode: dest.code,
+      checkin: getDateString(1),
+      checkout: getDateString(2),
+      adults: '2',
+      currency: 'USD',
     });
-  };
-
-  const getTomorrow = () => {
-    const d = new Date();
-    d.setDate(d.getDate() + 1);
-    return d.toISOString().split('T')[0];
-  };
-
-  const getDayAfter = () => {
-    const d = new Date();
-    d.setDate(d.getDate() + 2);
-    return d.toISOString().split('T')[0];
+    navigate(`/search?${params.toString()}`);
   };
 
   const scrollDest = (dir) => {

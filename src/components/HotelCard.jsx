@@ -20,25 +20,27 @@ export default function HotelCard({ hotel, rate, searchParams }) {
           src={photo}
           alt={hotel.name}
           className="hotel-card-img"
-          onError={(e) => {
-            e.currentTarget.style.display = 'none';
-          }}
+          onError={(e) => { e.currentTarget.style.display = 'none'; }}
         />
       ) : (
-        <div className="hotel-img-placeholder">🏨</div>
+        <div className="hotel-card-img-placeholder">🏨</div>
       )}
 
       <div className="hotel-card-body">
         <div className="hotel-card-top">
-          <h3 className="hotel-name">{hotel.name}</h3>
-          {stars > 0 && (
-            <div className="hotel-stars">
-              {Array.from({ length: Math.min(stars, 5) }).map((_, i) => (
-                <span key={i} className="star">★</span>
-              ))}
-            </div>
+          <h3 className="hotel-card-name">{hotel.name}</h3>
+          {hotel.reviewScore && (
+            <span className="hotel-rating">{hotel.reviewScore}</span>
           )}
         </div>
+
+        {stars > 0 && (
+          <div className="hotel-stars">
+            {Array.from({ length: Math.min(stars, 5) }).map((_, i) => (
+              <span key={i} className="star">★</span>
+            ))}
+          </div>
+        )}
 
         <p className="hotel-location">
           📍 {[hotel.city, hotel.country].filter(Boolean).join(', ')}
@@ -52,16 +54,12 @@ export default function HotelCard({ hotel, rate, searchParams }) {
                 <span className="price-amount">
                   {lowestPrice.currency} {parseFloat(lowestPrice.amount).toFixed(0)}
                 </span>
-                <span className="price-per">per night</span>
+                <span className="price-per">/ night</span>
               </>
             ) : (
-              <span className="price-label">View rates →</span>
+              <span className="price-tbd">View rates →</span>
             )}
           </div>
-
-          {hotel.reviewScore && (
-            <span className="hotel-rating">{hotel.reviewScore}</span>
-          )}
 
           <button className="view-btn">View →</button>
         </div>

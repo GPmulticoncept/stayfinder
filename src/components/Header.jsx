@@ -1,10 +1,21 @@
-import { Link, useNavigate } from 'react-router-dom';
+import { useState } from 'react';
+import { Link } from 'react-router-dom';
 
 export default function Header() {
-  const navigate = useNavigate();
+  const [toast, setToast] = useState('');
+
+  const showToast = (msg) => {
+    setToast(msg);
+    setTimeout(() => setToast(''), 3500);
+  };
 
   return (
     <header className="header">
+      {toast && (
+        <div className="header-toast">
+          <span>🔔</span> {toast}
+        </div>
+      )}
       <div className="header-inner">
         <Link to="/" className="logo">
           <span className="logo-icon">🏨</span>
@@ -18,10 +29,16 @@ export default function Header() {
         </nav>
 
         <div className="header-actions">
-          <button className="btn-outline" onClick={() => {}}>
+          <button
+            className="btn-outline"
+            onClick={() => showToast('Sign In coming in V2 — powered by Supabase.')}
+          >
             Sign In
           </button>
-          <button className="btn-primary" onClick={() => {}}>
+          <button
+            className="btn-primary"
+            onClick={() => showToast('Registration coming in V2 — powered by Supabase.')}
+          >
             Register
           </button>
         </div>

@@ -67,17 +67,21 @@ export default function SearchBar({ initialValues = {} }) {
     currency: initialValues.currency || 'USD',
   });
 
+  const [cityError, setCityError] = useState('');
+
   const onChange = (e) => {
     const { name, value } = e.target;
     setForm((prev) => ({ ...prev, [name]: value }));
+    if (name === 'city' && cityError) setCityError('');
   };
 
   const onSubmit = (e) => {
     e.preventDefault();
     if (!form.city.trim()) {
-      alert('Please enter a destination city.');
+      setCityError('Please enter a destination city.');
       return;
     }
+    setCityError('');
     const params = new URLSearchParams({
       city: form.city.trim(),
       countryCode: form.countryCode,
@@ -101,8 +105,9 @@ export default function SearchBar({ initialValues = {} }) {
               placeholder="Paris, Dubai, Lagos..."
               value={form.city}
               onChange={onChange}
-              required
+              className={cityError ? 'search-input--error' : ''}
             />
+            {cityError && <span className="search-field-error">{cityError}</span>}
           </div>
 
           <div className="search-field">

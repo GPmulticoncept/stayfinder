@@ -1,16 +1,27 @@
 const BASE_URL = 'https://api.liteapi.travel/v3.0';
 const API_KEY = import.meta.env.VITE_LITEAPI_KEY;
 
-const headers = () => ({
+// GET requests must NOT include Content-Type — it triggers CORS preflight and silently fails
+const getHeaders = () => ({
+  'X-API-Key': API_KEY,
+  'Accept': 'application/json',
+});
+
+// POST requests need Content-Type
+const postHeaders = () => ({
   'X-API-Key': API_KEY,
   'Content-Type': 'application/json',
-  Accept: 'application/json',
+  'Accept': 'application/json',
 });
 
 export const searchHotels = async ({ countryCode, limit = 30 }) => {
   try {
     const params = new URLSearchParams({ countryCode, limit: String(limit) });
-    const res = await fetch(`${BASE_URL}/data/hotels?${params}`, { headers: headers() });
+    const res = await fetch(`${BASE_URL}/data/hotels?${params}`, { headers: getHeaders() });
+    if (!res.ok) {
+      console.error('searchHotels HTTP error:', res.status, res.statusText);
+      return [];
+    }
     const data = await res.json();
     return data.data || [];
   } catch (err) {
@@ -23,7 +34,7 @@ export const getHotelRates = async ({ hotelIds, checkin, checkout, adults, curre
   try {
     const res = await fetch(`${BASE_URL}/hotels/rates`, {
       method: 'POST',
-      headers: headers(),
+      headers: postHeaders(),
       body: JSON.stringify({
         hotelIds,
         checkin,
@@ -33,6 +44,10 @@ export const getHotelRates = async ({ hotelIds, checkin, checkout, adults, curre
         guestNationality: guestNationality || 'US',
       }),
     });
+    if (!res.ok) {
+      console.error('getHotelRates HTTP error:', res.status, res.statusText);
+      return [];
+    }
     const data = await res.json();
     return data.data || [];
   } catch (err) {
@@ -43,7 +58,11 @@ export const getHotelRates = async ({ hotelIds, checkin, checkout, adults, curre
 
 export const getHotelDetails = async (hotelId) => {
   try {
-    const res = await fetch(`${BASE_URL}/data/hotel?hotelId=${hotelId}`, { headers: headers() });
+    const res = await fetch(`${BASE_URL}/data/hotel?hotelId=${hotelId}`, { headers: getHeaders() });
+    if (!res.ok) {
+      console.error('getHotelDetails HTTP error:', res.status, res.statusText);
+      return null;
+    }
     const data = await res.json();
     return data.data || null;
   } catch (err) {

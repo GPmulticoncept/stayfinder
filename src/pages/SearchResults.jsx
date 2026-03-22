@@ -21,21 +21,25 @@ export default function SearchResults() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
 
-  const city = searchParams.get('city') || '';
+  const city        = searchParams.get('city') || '';
   const countryCode = searchParams.get('countryCode') || 'US';
-  const checkin = searchParams.get('checkin') || '';
-  const checkout = searchParams.get('checkout') || '';
-  const adults = parseInt(searchParams.get('adults') || '2');
-  const currency = searchParams.get('currency') || 'USD';
+  const checkin     = searchParams.get('checkin') || '';
+  const checkout    = searchParams.get('checkout') || '';
+  const adults      = parseInt(searchParams.get('adults') || '2');
+  const currency    = searchParams.get('currency') || 'USD';
 
-  const [hotels, setHotels] = useState([]);
-  const [rates, setRates] = useState({});
-  const [loading, setLoading] = useState(true);
+  const [hotels, setHotels]             = useState([]);
+  const [rates, setRates]               = useState({});
+  const [loading, setLoading]           = useState(true);
   const [loadingRates, setLoadingRates] = useState(false);
-  const [error, setError] = useState(null);
+  const [error, setError]               = useState(null);
 
   useEffect(() => {
-    if (!checkin || !checkout) return;
+    if (!checkin || !checkout) {
+      setLoading(false);
+      return;
+    }
+
     const run = async () => {
       try {
         setLoading(true);
@@ -73,6 +77,7 @@ export default function SearchResults() {
         setLoadingRates(false);
       }
     };
+
     run();
   }, [city, countryCode, checkin, checkout, adults, currency]);
 
@@ -90,8 +95,8 @@ export default function SearchResults() {
         {loading ? (
           <>
             <div className="results-header">
-              <div className="skeleton-line wide" style={{ height: 28, marginBottom: 8 }} />
-              <div className="skeleton-line medium" style={{ height: 16 }} />
+              <div className="skeleton-line wide" style={{ height: 28, marginBottom: 8, borderRadius: 6 }} />
+              <div className="skeleton-line medium" style={{ height: 16, borderRadius: 4 }} />
             </div>
             <div className="results-grid">
               {Array.from({ length: 6 }).map((_, i) => <SkeletonCard key={i} />)}
@@ -104,20 +109,26 @@ export default function SearchResults() {
             <p>{error}</p>
             <button className="try-again-btn" onClick={() => navigate('/')}>Try Again</button>
           </div>
-        ) : hotels.length === 0 ? (
+        ) : !checkin || !checkout ? (
           <div className="no-results">
             <div className="no-results-icon">🔍</div>
-            <h3>No hotels found in {city}</h3>
-            <p>Try a different city or adjust your search.</p>
+            <h3>Start your search</h3>
+            <p>Enter your destination, dates and guests above to find hotels.</p>
+          </div>
+        ) : hotels.length === 0 ? (
+          <div className="no-results">
+            <div className="no-results-icon">🏨</div>
+            <h3>No hotels found{city ? ` in ${city}` : ''}</h3>
+            <p>Try a different country or adjust your dates.</p>
             <button className="try-again-btn" onClick={() => navigate('/')}>Search Again</button>
           </div>
         ) : (
           <>
             <div className="results-header">
-              <h2>Hotels in {city}</h2>
+              <h2>Hotels{city ? ` in ${city}` : ''}</h2>
               <p className="results-meta">
                 {hotels.length} properties · {checkin} → {checkout} · {adults} adult{adults > 1 ? 's' : ''}
-                {loadingRates && ' · Fetching prices...'}
+                {loadingRates && <span className="results-fetching"> · Fetching prices…</span>}
               </p>
             </div>
             <div className="results-grid">
