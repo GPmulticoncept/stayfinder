@@ -32,7 +32,7 @@ export default function Footer() {
         </div>
 
         <div className="footer-bottom">
-          <p>© {new Date().getFullYear()} StayFinder. All rights reserved. Powered by LiteAPI.</p>
+          <p>© {new Date().getFullYear()} StayFinder. All rights reserved. GPmulticoncept Enterprises.</p>
         </div>
       </div>
     </footer>
