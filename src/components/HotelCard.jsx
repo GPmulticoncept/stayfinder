@@ -1,7 +1,10 @@
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 export default function HotelCard({ hotel, rate, searchParams }) {
   const navigate = useNavigate();
+  const [imgLoaded, setImgLoaded] = useState(false);
+  const [imgFailed, setImgFailed] = useState(false);
 
   const stars = hotel.starRating || hotel.stars || 0;
   const photo = hotel.main_photo || hotel.thumbnail || null;
@@ -16,16 +19,34 @@ export default function HotelCard({ hotel, rate, searchParams }) {
   return (
     <div className="hotel-card" onClick={handleClick}>
       <div className="hotel-card-img-wrap">
-        {photo ? (
+
+        {/* Shimmer skeleton — visible until image loads or if no photo */}
+        {!imgLoaded && !imgFailed && (
+          <div className={`hotel-card-img-skeleton ${photo ? 'hotel-card-img-skeleton--loading' : ''}`}>
+            {!photo && <span>🏨</span>}
+          </div>
+        )}
+
+        {photo && !imgFailed && (
           <img
             src={photo}
             alt={hotel.name}
             className="hotel-card-img"
-            onError={(e) => { e.currentTarget.parentElement.innerHTML = '<div class="hotel-card-img-placeholder">🏨</div>'; }}
+            loading="lazy"
+            decoding="async"
+            style={{ opacity: imgLoaded ? 1 : 0, transition: 'opacity 0.3s ease' }}
+            onLoad={() => setImgLoaded(true)}
+            onError={() => {
+              setImgFailed(true);
+              setImgLoaded(true);
+            }}
           />
-        ) : (
+        )}
+
+        {imgFailed && (
           <div className="hotel-card-img-placeholder">🏨</div>
         )}
+
         {hotel.reviewScore && (
           <div className="hotel-card-rating-badge">{hotel.reviewScore}</div>
         )}

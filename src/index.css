@@ -355,7 +355,6 @@ body {
   display: flex; gap: 14px; overflow-x: auto;
   scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch;
   padding-bottom: 8px; scrollbar-width: none;
-  /* Prevent contributing to page-level overflow */
   max-width: 100%;
 }
 .home-dest-scroll::-webkit-scrollbar { display: none; }
@@ -473,15 +472,38 @@ body {
 .hotel-card:hover { box-shadow: var(--shadow-lg); transform: translateY(-5px); border-color: transparent; }
 
 .hotel-card-img-wrap { position: relative; overflow: hidden; height: 200px; }
-.hotel-card-img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94); }
+.hotel-card-img {
+  width: 100%; height: 100%; object-fit: cover; display: block;
+  transition: transform 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  position: relative; z-index: 1;
+}
 .hotel-card:hover .hotel-card-img { transform: scale(1.06); }
 .hotel-card-img-placeholder { width: 100%; height: 200px; background: linear-gradient(135deg, var(--mist), var(--border)); display: flex; align-items: center; justify-content: center; font-size: 3rem; }
+
+/* Shimmer skeleton shown while card image loads */
+.hotel-card-img-skeleton {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2rem;
+  background: #e8e0d5;
+  border-radius: inherit;
+  z-index: 0;
+}
+.hotel-card-img-skeleton--loading {
+  background: linear-gradient(90deg, #e8e0d5 25%, #f0ebe4 50%, #e8e0d5 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s infinite;
+}
 
 .hotel-card-rating-badge {
   position: absolute; top: 12px; right: 12px;
   background: rgba(11,15,26,0.85); color: var(--white);
   border-radius: 10px; padding: 4px 10px; font-size: 0.78rem; font-weight: 700;
   backdrop-filter: blur(8px);
+  z-index: 2;
 }
 
 .hotel-card-body { padding: 16px 18px 18px; }
@@ -568,7 +590,7 @@ body {
 .detail-hero-img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform 0.6s ease; }
 .detail-hero-wrap:hover .detail-hero-img { transform: scale(1.03); }
 .detail-hero-placeholder { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 5rem; background: linear-gradient(135deg, var(--navy-mid), var(--navy)); }
-.detail-hero-overlay { position: absolute; inset: 0; background: linear-gradient(to bottom, rgba(0,0,0,0.08) 0%, rgba(0,0,0,0.6) 100%); }
+.detail-hero-overlay { position: absolute; inset: 0; background: linear-gradient(to bottom, rgba(0,0,0,0.08) 0%, rgba(0,0,0,0.6) 100%); pointer-events: none; z-index: 2; }
 .detail-back-btn {
   position: absolute; top: 18px; left: 18px; background: rgba(255,255,255,0.12);
   backdrop-filter: blur(12px); color: #fff; border: 1px solid rgba(255,255,255,0.25);
@@ -581,10 +603,120 @@ body {
 .detail-hero-stars { display: flex; gap: 3px; }
 .detail-hero-stars span { color: var(--gold-light); font-size: 0.95rem; }
 
+/* =====================
+   PHOTO CAROUSEL
+   ===================== */
+.carousel-wrap {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+.carousel-track {
+  display: flex;
+  height: 100%;
+  transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+  will-change: transform;
+}
+
+.carousel-slide {
+  flex: 0 0 100%;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+.carousel-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.carousel-slide-placeholder {
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, #d4c9bb 25%, #ddd4c8 50%, #d4c9bb 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s infinite;
+}
+
+/* Prev / Next arrows */
+.carousel-arrow {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  background: rgba(0, 0, 0, 0.45);
+  color: #fff;
+  border: none;
+  border-radius: 50%;
+  width: 36px;
+  height: 36px;
+  font-size: 1.5rem;
+  line-height: 1;
+  cursor: pointer;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s;
+  -webkit-tap-highlight-color: transparent;
+}
+.carousel-arrow:hover { background: rgba(0, 0, 0, 0.65); }
+.carousel-arrow--prev { left: 12px; }
+.carousel-arrow--next { right: 12px; }
+
+/* Counter badge */
+.carousel-counter {
+  position: absolute;
+  bottom: 48px;
+  right: 12px;
+  background: rgba(0, 0, 0, 0.5);
+  color: #fff;
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 20px;
+  z-index: 10;
+  letter-spacing: 0.02em;
+}
+
+/* Dot indicators */
+.carousel-dots {
+  position: absolute;
+  bottom: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 6px;
+  z-index: 10;
+  flex-wrap: wrap;
+  justify-content: center;
+  max-width: 80%;
+}
+
+.carousel-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.5);
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  transition: background 0.2s, transform 0.2s;
+  -webkit-tap-highlight-color: transparent;
+}
+.carousel-dot--active {
+  background: #fff;
+  transform: scale(1.3);
+}
+
 .detail-meta-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 22px; flex-wrap: wrap; }
 .detail-meta-right { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; justify-content: flex-end; }
 .detail-address { font-size: 0.875rem; color: var(--text-secondary); display: flex; align-items: center; gap: 4px; }
 .detail-stay-badge { font-size: 0.77rem; font-weight: 500; color: var(--text-secondary); background: var(--mist); border-radius: 50px; padding: 5px 14px; white-space: nowrap; }
+
 .detail-divider { height: 1px; background: var(--border-light); margin: 0 0 26px; }
 
 .detail-score { background: var(--navy); color: #fff; border-radius: 12px; padding: 10px 14px; text-align: center; min-width: 68px; flex-shrink: 0; }
@@ -732,4 +864,6 @@ body {
   .detail-sticky-btn { padding: 9px 16px; font-size: 0.82rem; }
   .search-card { padding: 16px; border-radius: var(--radius-lg); }
   .container { padding: 0 16px; }
+  .carousel-arrow { width: 30px; height: 30px; font-size: 1.2rem; }
+  .carousel-counter { bottom: 42px; font-size: 0.68rem; padding: 3px 8px; }
 }

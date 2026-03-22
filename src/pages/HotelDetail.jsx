@@ -27,6 +27,112 @@ const calcNights = (checkin, checkout) => {
 const TRAVELLER_ICONS = { solo: '🧍', business: '💼', couple: '❤️', family: '👨‍👩‍👧', friends: '👥' };
 const TABS = ['Overview', 'Rooms', 'Reviews', 'Description'];
 
+/* ─── Photo Carousel ─── */
+function PhotoCarousel({ images, hotelName }) {
+  const [current, setCurrent] = useState(0);
+  const [loadedIndexes, setLoadedIndexes] = useState(new Set([0]));
+  const touchStartX = useRef(null);
+  const touchStartY = useRef(null);
+
+  const total = images.length;
+
+  const goTo = (index) => {
+    const clamped = Math.max(0, Math.min(index, total - 1));
+    setCurrent(clamped);
+    // Preload next image
+    setLoadedIndexes((prev) => new Set([...prev, clamped, clamped + 1]));
+  };
+
+  const prev = (e) => { e.stopPropagation(); goTo(current - 1); };
+  const next = (e) => { e.stopPropagation(); goTo(current + 1); };
+
+  const onTouchStart = (e) => {
+    touchStartX.current = e.touches[0].clientX;
+    touchStartY.current = e.touches[0].clientY;
+  };
+
+  const onTouchEnd = (e) => {
+    if (touchStartX.current === null) return;
+    const dx = e.changedTouches[0].clientX - touchStartX.current;
+    const dy = Math.abs(e.changedTouches[0].clientY - touchStartY.current);
+    // Only register horizontal swipe if not mostly vertical
+    if (Math.abs(dx) > 40 && dy < 60) {
+      dx < 0 ? goTo(current + 1) : goTo(current - 1);
+    }
+    touchStartX.current = null;
+    touchStartY.current = null;
+  };
+
+  if (total === 0) {
+    return <div className="detail-hero-placeholder">🏨</div>;
+  }
+
+  return (
+    <div
+      className="carousel-wrap"
+      onTouchStart={onTouchStart}
+      onTouchEnd={onTouchEnd}
+    >
+      {/* Slides */}
+      <div className="carousel-track" style={{ transform: `translateX(-${current * 100}%)` }}>
+        {images.map((src, i) => (
+          <div key={i} className="carousel-slide">
+            {loadedIndexes.has(i) ? (
+              <img
+                src={src}
+                alt={`${hotelName} photo ${i + 1}`}
+                className="carousel-img"
+                loading={i === 0 ? 'eager' : 'lazy'}
+                decoding="async"
+              />
+            ) : (
+              <div className="carousel-slide-placeholder" />
+            )}
+          </div>
+        ))}
+      </div>
+
+      {/* Prev / Next arrows */}
+      {total > 1 && (
+        <>
+          {current > 0 && (
+            <button className="carousel-arrow carousel-arrow--prev" onClick={prev} aria-label="Previous photo">
+              ‹
+            </button>
+          )}
+          {current < total - 1 && (
+            <button className="carousel-arrow carousel-arrow--next" onClick={next} aria-label="Next photo">
+              ›
+            </button>
+          )}
+        </>
+      )}
+
+      {/* Image counter badge */}
+      {total > 1 && (
+        <div className="carousel-counter">
+          📷 {current + 1} / {total}
+        </div>
+      )}
+
+      {/* Dot indicators (max 8 dots to avoid overflow) */}
+      {total > 1 && total <= 20 && (
+        <div className="carousel-dots">
+          {images.map((_, i) => (
+            <button
+              key={i}
+              className={`carousel-dot ${i === current ? 'carousel-dot--active' : ''}`}
+              onClick={(e) => { e.stopPropagation(); goTo(i); }}
+              aria-label={`Go to photo ${i + 1}`}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ─── Main Component ─── */
 export default function HotelDetail() {
   const { hotelId } = useParams();
   const { state } = useLocation();
@@ -35,7 +141,6 @@ export default function HotelDetail() {
   const [hotel, setHotel] = useState(state?.hotel || null);
   const [loading, setLoading] = useState(!state?.hotel);
   const [error, setError] = useState(null);
-  const [imgFailed, setImgFailed] = useState(false);
   const [activeTab, setActiveTab] = useState('Overview');
   const tabRef = useRef(null);
 
@@ -98,7 +203,14 @@ export default function HotelDetail() {
   }
 
   const stars = hotel.starRating || hotel.stars || 0;
-  const photo = hotel.main_photo || hotel.thumbnail || null;
+
+  // Build images array — LiteAPI can return images as array of strings or array of objects
+  const rawImages = hotel.images || hotel.photos || [];
+  const carouselImages = rawImages.length > 0
+    ? rawImages.map((img) => (typeof img === 'string' ? img : img.url || img.thumbnail || img.original || ''))
+         .filter(Boolean)
+    : [hotel.main_photo || hotel.thumbnail].filter(Boolean);
+
   const rooms = rate?.roomTypes || [];
   const description = hotel.hotelDescription || hotel.description || '';
   const address = [hotel.address, hotel.city, hotel.country].filter(Boolean).join(', ');
@@ -112,13 +224,9 @@ export default function HotelDetail() {
   return (
     <div className="detail-page">
 
-      {/* HERO */}
+      {/* HERO — Photo Carousel */}
       <div className="detail-hero-wrap">
-        {photo && !imgFailed ? (
-          <img src={photo} alt={hotel.name} className="detail-hero-img" onError={() => setImgFailed(true)} />
-        ) : (
-          <div className="detail-hero-placeholder">🏨</div>
-        )}
+        <PhotoCarousel images={carouselImages} hotelName={hotel.name} />
         <div className="detail-hero-overlay" />
         <button className="detail-back-btn" onClick={() => navigate(-1)}>← Back</button>
         <div className="detail-hero-info">
