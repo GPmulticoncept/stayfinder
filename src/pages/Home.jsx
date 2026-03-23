@@ -14,8 +14,8 @@ const DESTINATIONS = [
   { city: 'New York', country: 'USA',       code: 'US', img: 'https://images.unsplash.com/photo-1496442226666-8d4d0e62e6e9?w=400&q=80' },
   { city: 'London',   country: 'UK',        code: 'GB', img: 'https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?w=400&q=80' },
   { city: 'Tokyo',    country: 'Japan',     code: 'JP', img: 'https://images.unsplash.com/photo-1540959733332-eab4deabeeaf?w=400&q=80' },
-  { city: 'Lagos',    country: 'Nigeria',   code: 'NG', img: 'https://images.unsplash.com/photo-1617176488832-b7c5e3f26a46?w=400&q=80' },
-  { city: 'Abuja',    country: 'Nigeria',   code: 'NG', img: 'https://images.unsplash.com/photo-1609348445273-3f0b40c14f9e?w=400&q=80' },
+  { city: 'Lagos',    country: 'Nigeria',   code: 'NG', img: 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=400&q=80' },
+  { city: 'Abuja',    country: 'Nigeria',   code: 'NG', img: 'https://images.unsplash.com/photo-1523978591478-c753949ff840?w=400&q=80' },
   { city: 'Toronto',  country: 'Canada',    code: 'CA', img: 'https://images.unsplash.com/photo-1517090504586-fde19ea6066f?w=400&q=80' },
   { city: 'Sydney',   country: 'Australia', code: 'AU', img: 'https://images.unsplash.com/photo-1506973035872-a4ec16b8e8d9?w=400&q=80' },
   { city: 'Cape Town',country: 'S. Africa', code: 'ZA', img: 'https://images.unsplash.com/photo-1580060839134-75a5edca2e99?w=400&q=80' },
@@ -132,6 +132,10 @@ export default function Home() {
                 className="sf-dest-card-bg"
                 loading="lazy"
                 decoding="async"
+                onError={(e) => {
+                  e.target.style.display = 'none';
+                  e.target.parentElement.style.background = 'linear-gradient(135deg, #1e3254, #0d1b2a)';
+                }}
               />
               <div className="sf-dest-card-overlay" />
               <div className="sf-dest-card-info">
