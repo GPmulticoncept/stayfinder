@@ -122,8 +122,6 @@ export default function HotelDetail() {
   const { state } = useLocation();
   const navigate = useNavigate();
 
-  // Start with state data immediately so the page isn't blank,
-  // then always fetch full details to get the images array for the carousel
   const [hotel, setHotel] = useState(state?.hotel || null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -135,17 +133,20 @@ export default function HotelDetail() {
   const nights = calcNights(searchParams.checkin, searchParams.checkout);
 
   useEffect(() => {
-    // Fix: scroll to top instantly on mount — prevents jumping to footer
     window.scrollTo({ top: 0, behavior: 'instant' });
 
-    // Fix: always fetch full hotel details regardless of state
-    // so we always have the full images array for the carousel
     (async () => {
       try {
         setLoading(true);
         const fullData = await getHotelDetails(hotelId);
         if (fullData) {
-          // Merge full API data on top of state data — API wins
+          // LOG: expose full API response so we can find the images key
+          console.log('FULL HOTEL DATA KEYS:', Object.keys(fullData));
+          console.log('FULL HOTEL DATA:', fullData);
+          console.log('images field:', fullData.images);
+          console.log('photos field:', fullData.photos);
+          console.log('main_photo field:', fullData.main_photo);
+          console.log('thumbnail field:', fullData.thumbnail);
           setHotel((prev) => ({ ...prev, ...fullData }));
         }
       } catch {
@@ -161,7 +162,6 @@ export default function HotelDetail() {
     const checkin = searchParams.checkin || '';
     const checkout = searchParams.checkout || '';
     const adults = searchParams.adults || 2;
-    // Replace YOUR_AFFILIATE_ID once registered on Booking.com
     const url = `https://www.booking.com/searchresults.html?aid=YOUR_AFFILIATE_ID&ss=${encodeURIComponent(hotel?.name || city)}&checkin=${checkin}&checkout=${checkout}&group_adults=${adults}&no_rooms=1`;
     window.open(url, '_blank');
   };
@@ -180,7 +180,6 @@ export default function HotelDetail() {
     return 'Reviewed';
   };
 
-  // Show spinner only if we have no state data at all
   if (loading && !hotel) return <LoadingSpinner text="Loading hotel details..." />;
 
   if (error || !hotel) {
@@ -198,7 +197,6 @@ export default function HotelDetail() {
 
   const stars = hotel.starRating || hotel.stars || 0;
 
-  // Build images array from full API response
   const rawImages = hotel.images || hotel.photos || [];
   const carouselImages = rawImages.length > 0
     ? rawImages.map((img) => (typeof img === 'string' ? img : img.url || img.thumbnail || img.original || '')).filter(Boolean)
