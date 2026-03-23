@@ -36,8 +36,72 @@ const getScoreLabel = (score) => {
 const TRAVELLER_ICONS = { solo: '🧍', business: '💼', couple: '❤️', family: '👨‍👩‍👧', friends: '👥' };
 const TABS = ['Overview', 'Rooms', 'Reviews', 'Description'];
 
+/* ─── Fullscreen Gallery Overlay ─── */
+function GalleryOverlay({ images, startIndex, hotelName, onClose }) {
+  const [current, setCurrent] = useState(startIndex);
+  const touchStartX = useRef(null);
+  const touchStartY = useRef(null);
+  const total = images.length;
+
+  const goTo = (i) => setCurrent(Math.max(0, Math.min(i, total - 1)));
+  const prev = (e) => { e.stopPropagation(); goTo(current - 1); };
+  const next = (e) => { e.stopPropagation(); goTo(current + 1); };
+
+  const onTouchStart = (e) => {
+    touchStartX.current = e.touches[0].clientX;
+    touchStartY.current = e.touches[0].clientY;
+  };
+  const onTouchEnd = (e) => {
+    if (touchStartX.current === null) return;
+    const dx = e.changedTouches[0].clientX - touchStartX.current;
+    const dy = Math.abs(e.changedTouches[0].clientY - touchStartY.current);
+    if (Math.abs(dx) > 40 && dy < 60) dx < 0 ? goTo(current + 1) : goTo(current - 1);
+    touchStartX.current = null;
+    touchStartY.current = null;
+  };
+
+  return (
+    <div className="gallery-overlay" onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
+      <div className="gallery-overlay-header">
+        <span className="gallery-overlay-title">{hotelName}</span>
+        <span className="gallery-overlay-count">{current + 1} / {total}</span>
+        <button className="gallery-overlay-close" onClick={onClose}>✕</button>
+      </div>
+      <div className="gallery-overlay-img-wrap">
+        <img
+          src={images[current]}
+          alt={`${hotelName} photo ${current + 1}`}
+          className="gallery-overlay-img"
+          loading="eager"
+          decoding="async"
+        />
+      </div>
+      {current > 0 && (
+        <button className="gallery-overlay-arrow gallery-overlay-arrow--prev" onClick={prev}>‹</button>
+      )}
+      {current < total - 1 && (
+        <button className="gallery-overlay-arrow gallery-overlay-arrow--next" onClick={next}>›</button>
+      )}
+      <div className="gallery-thumb-strip">
+        {images.slice(Math.max(0, current - 3), current + 8).map((src, idx) => {
+          const realIdx = Math.max(0, current - 3) + idx;
+          return (
+            <div
+              key={realIdx}
+              className={`gallery-thumb${realIdx === current ? ' gallery-thumb--active' : ''}`}
+              onClick={(e) => { e.stopPropagation(); goTo(realIdx); }}
+            >
+              <img src={src} alt="" loading="lazy" decoding="async" />
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 /* ─── Photo Carousel ─── */
-function PhotoCarousel({ images, hotelName }) {
+function PhotoCarousel({ images, hotelName, onOpenGallery }) {
   const [current, setCurrent] = useState(0);
   const [loadedIndexes, setLoadedIndexes] = useState(new Set([0]));
   const touchStartX = useRef(null);
@@ -86,7 +150,6 @@ function PhotoCarousel({ images, hotelName }) {
           </div>
         ))}
       </div>
-
       {total > 1 && current > 0 && (
         <button className="carousel-arrow carousel-arrow--prev" onClick={prev} aria-label="Previous photo">‹</button>
       )}
@@ -108,6 +171,14 @@ function PhotoCarousel({ images, hotelName }) {
           ))}
         </div>
       )}
+      {total > 1 && (
+        <button
+          className="carousel-view-all"
+          onClick={(e) => { e.stopPropagation(); onOpenGallery(current); }}
+        >
+          🖼 View all {total} photos
+        </button>
+      )}
     </div>
   );
 }
@@ -118,11 +189,16 @@ export default function HotelDetail() {
   const { state }   = useLocation();
   const navigate    = useNavigate();
 
-  const [hotel,   setHotel]   = useState(state?.hotel || null);
-  const [loading, setLoading] = useState(true);
-  const [error,   setError]   = useState(null);
-  const [activeTab, setActiveTab] = useState('Overview');
+  const [hotel,        setHotel]        = useState(state?.hotel || null);
+  const [loading,      setLoading]      = useState(true);
+  const [error,        setError]        = useState(null);
+  const [activeTab,    setActiveTab]    = useState('Overview');
+  const [galleryOpen,  setGalleryOpen]  = useState(false);
+  const [galleryStart, setGalleryStart] = useState(0);
   const tabRef = useRef(null);
+
+  const openGallery  = (index = 0) => { setGalleryStart(index); setGalleryOpen(true); };
+  const closeGallery = () => setGalleryOpen(false);
 
   const rate         = state?.rate         || null;
   const searchParams = state?.searchParams || {};
@@ -202,9 +278,19 @@ export default function HotelDetail() {
   return (
     <div className="detail-page">
 
+      {/* ── FULLSCREEN GALLERY ── */}
+      {galleryOpen && (
+        <GalleryOverlay
+          images={carouselImages}
+          startIndex={galleryStart}
+          hotelName={hotel.name}
+          onClose={closeGallery}
+        />
+      )}
+
       {/* ── HERO / CAROUSEL ── */}
       <div className="detail-hero-wrap">
-        <PhotoCarousel images={carouselImages} hotelName={hotel.name} />
+        <PhotoCarousel images={carouselImages} hotelName={hotel.name} onOpenGallery={openGallery} />
         <div className="detail-hero-overlay" />
         <button className="detail-back-btn" onClick={() => navigate(-1)}>← Back</button>
         <div className="detail-hero-info">
