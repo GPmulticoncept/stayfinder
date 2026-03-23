@@ -1,48 +1,71 @@
-const WHATSAPP_NUMBER = '2348000000000';
-const WHATSAPP_MSG = encodeURIComponent('Hello, I need help with StayFinder.');
-const WHATSAPP_LIST = encodeURIComponent('Hello, I would like to list my property on StayFinder.');
+const WHATSAPP_NUMBER = '2347034542773';
+const WHATSAPP_MSG   = encodeURIComponent('Hello, I need help with StayFinder.');
+const WHATSAPP_LIST  = encodeURIComponent('Hello, I would like to list my property on StayFinder.');
 
 export default function Footer() {
   return (
-    <footer className="footer">
-      <div className="footer-inner">
-        <div className="footer-top footer-top--simple">
-          <div className="footer-brand">
-            <div className="logo">
-              <span className="logo-icon">🏨</span>
-              <span className="logo-text" style={{ color: '#fff' }}>StayFinder</span>
+    <footer className="sf-footer">
+      <div className="sf-footer-inner">
+        <div className="sf-footer-top">
+
+          {/* Brand */}
+          <div>
+            <div className="sf-footer-logo">
+              <span className="sf-footer-logo-icon">🏨</span>
+              <span className="sf-footer-logo-text">StayFinder</span>
             </div>
-            <p>
-              Find and book hotels worldwide at the best prices.
-              Over 2 million hotels across 196 countries.
+            <p className="sf-footer-brand-desc">
+              Find and book world-class hotels at the best prices.
+              Over 2 million hotels across 196 countries — all in one place.
             </p>
-            <p className="footer-tagline">A GP Tech Studio product · GPmulticoncept Enterprises</p>
+            <p className="sf-footer-tagline">A GP Tech Studio product · GPmulticoncept Enterprises</p>
           </div>
 
-          <div className="footer-col">
-            <h4>Contact Us</h4>
+          {/* Company */}
+          <div>
+            <h4 className="sf-footer-col-title">Company</h4>
+            <a href="/#features" className="sf-footer-link">Why StayFinder</a>
+            <a href="/#destinations" className="sf-footer-link">Destinations</a>
+            <a
+              href={`https://wa.me/${WHATSAPP_NUMBER}?text=${WHATSAPP_LIST}`}
+              target="_blank" rel="noreferrer"
+              className="sf-footer-link"
+            >
+              List Your Property
+            </a>
+          </div>
+
+          {/* Support */}
+          <div>
+            <h4 className="sf-footer-col-title">Contact Us</h4>
             <a
               href={`https://wa.me/${WHATSAPP_NUMBER}?text=${WHATSAPP_MSG}`}
-              target="_blank"
-              rel="noreferrer"
+              target="_blank" rel="noreferrer"
+              className="sf-footer-link"
             >
               💬 WhatsApp Support
             </a>
-            <a href="mailto:haggai.enitan.dev@gmail.com">
+            <a href="mailto:haggai.enitan.dev@gmail.com" className="sf-footer-link">
               ✉️ Email Us
             </a>
             <a
               href={`https://wa.me/${WHATSAPP_NUMBER}?text=${WHATSAPP_LIST}`}
-              target="_blank"
-              rel="noreferrer"
+              target="_blank" rel="noreferrer"
+              className="sf-footer-link"
             >
-              🏠 List Your Property
+              🏠 Partner With Us
             </a>
           </div>
+
         </div>
 
-        <div className="footer-bottom">
-          <p>© {new Date().getFullYear()} StayFinder by GP Tech Studio · GPmulticoncept Enterprises. All rights reserved.</p>
+        <div className="sf-footer-bottom">
+          <p className="sf-footer-legal">
+            © {new Date().getFullYear()} StayFinder by GP Tech Studio · GPmulticoncept Enterprises. All rights reserved.
+          </p>
+          <p className="sf-footer-legal">
+            Hotel data powered by LiteAPI
+          </p>
         </div>
       </div>
     </footer>

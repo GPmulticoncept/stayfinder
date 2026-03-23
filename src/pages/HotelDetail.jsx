@@ -12,7 +12,7 @@ const getBoardLabel = (code) => BOARD_LABELS[code?.toUpperCase()] || code || 'Ro
 const getRefundInfo = (rate) => {
   const tag = rate?.refundableTag?.toUpperCase();
   if (tag === 'FULLY_REFUNDABLE' || tag === 'REFUNDABLE') return { label: 'Free cancellation', type: 'refundable' };
-  if (tag === 'NON_REFUNDABLE') return { label: 'Non-refundable', type: 'non-refundable' };
+  if (tag === 'NON_REFUNDABLE')     return { label: 'Non-refundable',    type: 'non-refundable' };
   if (tag === 'PARTIALLY_REFUNDABLE') return { label: 'Partially refundable', type: 'partial' };
   return { label: 'Check policy', type: 'unknown' };
 };
@@ -24,6 +24,15 @@ const calcNights = (checkin, checkout) => {
   return nights > 0 ? nights : 1;
 };
 
+const getScoreLabel = (score) => {
+  const s = parseFloat(score);
+  if (s >= 9) return 'Exceptional';
+  if (s >= 8) return 'Fabulous';
+  if (s >= 7) return 'Good';
+  if (s >= 6) return 'Pleasant';
+  return 'Reviewed';
+};
+
 const TRAVELLER_ICONS = { solo: '🧍', business: '💼', couple: '❤️', family: '👨‍👩‍👧', friends: '👥' };
 const TABS = ['Overview', 'Rooms', 'Reviews', 'Description'];
 
@@ -33,7 +42,6 @@ function PhotoCarousel({ images, hotelName }) {
   const [loadedIndexes, setLoadedIndexes] = useState(new Set([0]));
   const touchStartX = useRef(null);
   const touchStartY = useRef(null);
-
   const total = images.length;
 
   const goTo = (index) => {
@@ -41,7 +49,6 @@ function PhotoCarousel({ images, hotelName }) {
     setCurrent(clamped);
     setLoadedIndexes((prev) => new Set([...prev, clamped, clamped + 1]));
   };
-
   const prev = (e) => { e.stopPropagation(); goTo(current - 1); };
   const next = (e) => { e.stopPropagation(); goTo(current + 1); };
 
@@ -49,21 +56,16 @@ function PhotoCarousel({ images, hotelName }) {
     touchStartX.current = e.touches[0].clientX;
     touchStartY.current = e.touches[0].clientY;
   };
-
   const onTouchEnd = (e) => {
     if (touchStartX.current === null) return;
     const dx = e.changedTouches[0].clientX - touchStartX.current;
     const dy = Math.abs(e.changedTouches[0].clientY - touchStartY.current);
-    if (Math.abs(dx) > 40 && dy < 60) {
-      dx < 0 ? goTo(current + 1) : goTo(current - 1);
-    }
+    if (Math.abs(dx) > 40 && dy < 60) dx < 0 ? goTo(current + 1) : goTo(current - 1);
     touchStartX.current = null;
     touchStartY.current = null;
   };
 
-  if (total === 0) {
-    return <div className="detail-hero-placeholder">🏨</div>;
-  }
+  if (total === 0) return <div className="detail-hero-placeholder">🏨</div>;
 
   return (
     <div className="carousel-wrap" onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
@@ -85,27 +87,21 @@ function PhotoCarousel({ images, hotelName }) {
         ))}
       </div>
 
-      {total > 1 && (
-        <>
-          {current > 0 && (
-            <button className="carousel-arrow carousel-arrow--prev" onClick={prev} aria-label="Previous photo">‹</button>
-          )}
-          {current < total - 1 && (
-            <button className="carousel-arrow carousel-arrow--next" onClick={next} aria-label="Next photo">›</button>
-          )}
-        </>
+      {total > 1 && current > 0 && (
+        <button className="carousel-arrow carousel-arrow--prev" onClick={prev} aria-label="Previous photo">‹</button>
       )}
-
+      {total > 1 && current < total - 1 && (
+        <button className="carousel-arrow carousel-arrow--next" onClick={next} aria-label="Next photo">›</button>
+      )}
       {total > 1 && (
         <div className="carousel-counter">📷 {current + 1} / {total}</div>
       )}
-
       {total > 1 && total <= 20 && (
         <div className="carousel-dots">
           {images.map((_, i) => (
             <button
               key={i}
-              className={`carousel-dot ${i === current ? 'carousel-dot--active' : ''}`}
+              className={`carousel-dot${i === current ? ' carousel-dot--active' : ''}`}
               onClick={(e) => { e.stopPropagation(); goTo(i); }}
               aria-label={`Go to photo ${i + 1}`}
             />
@@ -119,34 +115,30 @@ function PhotoCarousel({ images, hotelName }) {
 /* ─── Main Component ─── */
 export default function HotelDetail() {
   const { hotelId } = useParams();
-  const { state } = useLocation();
-  const navigate = useNavigate();
+  const { state }   = useLocation();
+  const navigate    = useNavigate();
 
-  const [hotel, setHotel] = useState(state?.hotel || null);
+  const [hotel,   setHotel]   = useState(state?.hotel || null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [error,   setError]   = useState(null);
   const [activeTab, setActiveTab] = useState('Overview');
   const tabRef = useRef(null);
 
-  const rate = state?.rate || null;
+  const rate         = state?.rate         || null;
   const searchParams = state?.searchParams || {};
-  const nights = calcNights(searchParams.checkin, searchParams.checkout);
+  const nights       = calcNights(searchParams.checkin, searchParams.checkout);
 
   useEffect(() => {
+    // Scroll to top — prevents jumping to footer
     window.scrollTo({ top: 0, behavior: 'instant' });
 
+    // Always fetch full hotel details to get the full images array for the carousel
     (async () => {
       try {
         setLoading(true);
         const fullData = await getHotelDetails(hotelId);
         if (fullData) {
-          // LOG: expose full API response so we can find the images key
-          console.log('FULL HOTEL DATA KEYS:', Object.keys(fullData));
-          console.log('FULL HOTEL DATA:', fullData);
-          console.log('images field:', fullData.images);
-          console.log('photos field:', fullData.photos);
-          console.log('main_photo field:', fullData.main_photo);
-          console.log('thumbnail field:', fullData.thumbnail);
+          // Merge full API data on top of state data — API response wins
           setHotel((prev) => ({ ...prev, ...fullData }));
         }
       } catch {
@@ -158,10 +150,11 @@ export default function HotelDetail() {
   }, [hotelId]);
 
   const handleBookNow = () => {
-    const city = searchParams.city || hotel?.city || '';
-    const checkin = searchParams.checkin || '';
+    const city    = searchParams.city    || hotel?.city    || '';
+    const checkin  = searchParams.checkin  || '';
     const checkout = searchParams.checkout || '';
-    const adults = searchParams.adults || 2;
+    const adults   = searchParams.adults   || 2;
+    // Replace YOUR_AFFILIATE_ID once registered on Booking.com
     const url = `https://www.booking.com/searchresults.html?aid=YOUR_AFFILIATE_ID&ss=${encodeURIComponent(hotel?.name || city)}&checkin=${checkin}&checkout=${checkout}&group_adults=${adults}&no_rooms=1`;
     window.open(url, '_blank');
   };
@@ -171,16 +164,7 @@ export default function HotelDetail() {
     tabRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
 
-  const getScoreLabel = (score) => {
-    const s = parseFloat(score);
-    if (s >= 9) return 'Exceptional';
-    if (s >= 8) return 'Fabulous';
-    if (s >= 7) return 'Good';
-    if (s >= 6) return 'Pleasant';
-    return 'Reviewed';
-  };
-
-  if (loading && !hotel) return <LoadingSpinner text="Loading hotel details..." />;
+  if (loading && !hotel) return <LoadingSpinner text="Loading hotel details…" />;
 
   if (error || !hotel) {
     return (
@@ -195,27 +179,30 @@ export default function HotelDetail() {
     );
   }
 
-  const stars = hotel.starRating || hotel.stars || 0;
+  const stars = Math.min(Math.round(hotel.starRating || hotel.stars || 0), 5);
 
-  const rawImages = hotel.images || hotel.photos || [];
+  // Build carousel images — try every known LiteAPI key
+  const rawImages = hotel.images || hotel.photos || hotel.hotelImages || [];
   const carouselImages = rawImages.length > 0
-    ? rawImages.map((img) => (typeof img === 'string' ? img : img.url || img.thumbnail || img.original || '')).filter(Boolean)
+    ? rawImages
+        .map((img) => (typeof img === 'string' ? img : img.url || img.thumbnail || img.original || img.large || ''))
+        .filter(Boolean)
     : [hotel.main_photo || hotel.thumbnail].filter(Boolean);
 
-  const rooms = rate?.roomTypes || [];
-  const description = hotel.hotelDescription || hotel.description || '';
-  const address = [hotel.address, hotel.city, hotel.country].filter(Boolean).join(', ');
-  const facilities = hotel.facilities || hotel.amenities || [];
-  const reviewScore = hotel.reviewScore || null;
-  const reviewCount = hotel.reviewCount || hotel.numberOfReviews || null;
-  const reviews = hotel.reviews || [];
-  const lowestPrice = rooms[0]?.rates?.[0]?.retailRate?.total?.[0];
-  const lowestAmt = lowestPrice ? parseFloat(lowestPrice.amount) : null;
+  const rooms         = rate?.roomTypes || [];
+  const description   = hotel.hotelDescription || hotel.description || '';
+  const address       = [hotel.address, hotel.city, hotel.country].filter(Boolean).join(', ');
+  const facilities    = hotel.facilities || hotel.amenities || [];
+  const reviewScore   = hotel.reviewScore || null;
+  const reviewCount   = hotel.reviewCount || hotel.numberOfReviews || null;
+  const reviews       = hotel.reviews || [];
+  const lowestPrice   = rooms[0]?.rates?.[0]?.retailRate?.total?.[0];
+  const lowestAmt     = lowestPrice ? parseFloat(lowestPrice.amount) : null;
 
   return (
     <div className="detail-page">
 
-      {/* HERO — Photo Carousel */}
+      {/* ── HERO / CAROUSEL ── */}
       <div className="detail-hero-wrap">
         <PhotoCarousel images={carouselImages} hotelName={hotel.name} />
         <div className="detail-hero-overlay" />
@@ -224,19 +211,19 @@ export default function HotelDetail() {
           <h1 className="detail-hero-name">{hotel.name}</h1>
           {stars > 0 && (
             <div className="detail-hero-stars">
-              {Array.from({ length: Math.min(stars, 5) }).map((_, i) => <span key={i}>★</span>)}
+              {Array.from({ length: stars }).map((_, i) => <span key={i}>★</span>)}
             </div>
           )}
         </div>
       </div>
 
-      {/* STICKY TABS */}
+      {/* ── STICKY TABS ── */}
       <div className="detail-tabs-wrap" ref={tabRef}>
         <div className="detail-tabs">
           {TABS.map((tab) => (
             <button
               key={tab}
-              className={`detail-tab ${activeTab === tab ? 'detail-tab--active' : ''}`}
+              className={`detail-tab${activeTab === tab ? ' detail-tab--active' : ''}`}
               onClick={() => switchTab(tab)}
             >
               {tab}
@@ -245,10 +232,10 @@ export default function HotelDetail() {
         </div>
       </div>
 
-      {/* MAIN CONTENT */}
+      {/* ── MAIN CONTENT ── */}
       <div className="detail-content">
 
-        {/* ═══ OVERVIEW ═══ */}
+        {/* ════ OVERVIEW ════ */}
         {activeTab === 'Overview' && (
           <>
             <div className="detail-meta-row">
@@ -276,7 +263,7 @@ export default function HotelDetail() {
               <div className="detail-section">
                 <h2 className="detail-section-title">Smart highlights</h2>
                 <div className="detail-highlights-grid">
-                  {description.replace(/<[^>]+>/g, '').split(/(?<=[.!?])\s+/).filter(s => s.trim().length > 30).slice(0, 3).map((s, i) => (
+                  {description.replace(/<[^>]+>/g, '').split(/(?<=[.!?])\s+/).filter((s) => s.trim().length > 30).slice(0, 3).map((s, i) => (
                     <div key={i} className="detail-highlight-card">
                       <span className="detail-highlight-icon">✨</span>
                       <p>{s.trim()}</p>
@@ -291,10 +278,10 @@ export default function HotelDetail() {
               <div className="detail-section">
                 <div className="detail-section-head">
                   <h2 className="detail-section-title">Popular facilities</h2>
-                  <button className="detail-see-all" onClick={() => switchTab('Description')}>See all facilities</button>
+                  <button className="detail-see-all" onClick={() => switchTab('Description')}>See all</button>
                 </div>
                 <div className="detail-facilities-grid">
-                  {facilities.slice(0, 6).map((f, i) => (
+                  {facilities.slice(0, 8).map((f, i) => (
                     <div key={i} className="detail-facility-item">
                       <span className="detail-facility-icon">✓</span>
                       <span>{typeof f === 'string' ? f : f.name || f.facilityName || ''}</span>
@@ -309,7 +296,7 @@ export default function HotelDetail() {
               <div className="detail-section">
                 <div className="detail-section-head">
                   <h2 className="detail-section-title">Review highlights</h2>
-                  <button className="detail-see-all" onClick={() => switchTab('Reviews')}>Read all reviews</button>
+                  <button className="detail-see-all" onClick={() => switchTab('Reviews')}>All reviews</button>
                 </div>
                 <div className="detail-review-summary">
                   <div className="detail-review-score-big">
@@ -346,7 +333,7 @@ export default function HotelDetail() {
                 </div>
                 <div className="detail-room-preview-grid">
                   {rooms.slice(0, 2).map((room, i) => {
-                    const fr = room.rates?.[0];
+                    const fr    = room.rates?.[0];
                     const price = fr?.retailRate?.total?.[0];
                     return (
                       <div key={i} className="detail-room-preview-card" onClick={handleBookNow}>
@@ -369,10 +356,12 @@ export default function HotelDetail() {
           </>
         )}
 
-        {/* ═══ ROOMS ═══ */}
+        {/* ════ ROOMS ════ */}
         {activeTab === 'Rooms' && (
           <div className="detail-section">
-            <h2 className="detail-section-title">{rooms.length > 0 ? `Available Rooms (${rooms.length})` : 'Room Information'}</h2>
+            <h2 className="detail-section-title">
+              {rooms.length > 0 ? `Available Rooms (${rooms.length})` : 'Room Information'}
+            </h2>
 
             {searchParams.checkin && (
               <div className="detail-rooms-bar">
@@ -382,7 +371,7 @@ export default function HotelDetail() {
             )}
 
             <div className="detail-filter-pills">
-              <span className="detail-pill">☕ Breakfast included</span>
+              <span className="detail-pill">☕ Breakfast options</span>
               <span className="detail-pill">✅ Free cancellation</span>
             </div>
 
@@ -395,11 +384,11 @@ export default function HotelDetail() {
             ) : (
               <div className="detail-rooms-list">
                 {rooms.map((room, i) => {
-                  const fr = room.rates?.[0];
-                  const price = fr?.retailRate?.total?.[0];
-                  const refund = getRefundInfo(fr);
+                  const fr       = room.rates?.[0];
+                  const price    = fr?.retailRate?.total?.[0];
+                  const refund   = getRefundInfo(fr);
                   const perNight = price ? parseFloat(price.amount) : null;
-                  const total = perNight ? perNight * nights : null;
+                  const total    = perNight ? perNight * nights : null;
                   const roomsLeft = room.quantity || room.availableRooms || null;
                   return (
                     <div key={i} className="detail-room-card">
@@ -422,7 +411,9 @@ export default function HotelDetail() {
                         {price ? (
                           <div className="detail-price-block">
                             <div className="detail-price-row">
-                              <span className="detail-price-per-night">{price.currency} {perNight?.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}</span>
+                              <span className="detail-price-per-night">
+                                {price.currency} {perNight?.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
+                              </span>
                               <span className="detail-price-per-label">/ night</span>
                             </div>
                             {nights > 1 && total && (
@@ -445,7 +436,7 @@ export default function HotelDetail() {
           </div>
         )}
 
-        {/* ═══ REVIEWS ═══ */}
+        {/* ════ REVIEWS ════ */}
         {activeTab === 'Reviews' && (
           <div className="detail-section">
             <h2 className="detail-section-title">Guest reviews</h2>
@@ -481,7 +472,7 @@ export default function HotelDetail() {
                       </div>
                       {r.score && <span className="detail-review-score-badge">{r.score}</span>}
                     </div>
-                    {r.title && <p className="detail-review-title">{r.title}</p>}
+                    {r.title       && <p className="detail-review-title">{r.title}</p>}
                     {r.description && <p className="detail-review-body">{r.description}</p>}
                   </div>
                 ))}
@@ -492,7 +483,7 @@ export default function HotelDetail() {
           </div>
         )}
 
-        {/* ═══ DESCRIPTION ═══ */}
+        {/* ════ DESCRIPTION ════ */}
         {activeTab === 'Description' && (
           <div className="detail-section">
             {description ? (
@@ -501,7 +492,7 @@ export default function HotelDetail() {
                 <div className="detail-description" dangerouslySetInnerHTML={{ __html: description }} />
               </>
             ) : (
-              <p style={{ color: '#94a3b8' }}>No description available.</p>
+              <p style={{ color: 'var(--faint)' }}>No description available.</p>
             )}
             {facilities.length > 0 && (
               <div style={{ marginTop: 32 }}>
@@ -521,13 +512,15 @@ export default function HotelDetail() {
 
       </div>
 
-      {/* STICKY BOTTOM BAR */}
+      {/* ── STICKY BOTTOM BAR ── */}
       <div className="detail-sticky-bar">
         <div className="detail-sticky-price">
           {lowestAmt ? (
             <>
               <span className="detail-sticky-from">from</span>
-              <span className="detail-sticky-amount">{lowestPrice.currency} {lowestAmt.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</span>
+              <span className="detail-sticky-amount">
+                {lowestPrice.currency} {lowestAmt.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+              </span>
               <span className="detail-sticky-per">/ night</span>
             </>
           ) : (
