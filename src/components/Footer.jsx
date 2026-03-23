@@ -59,12 +59,9 @@ export default function Footer() {
 
         </div>
 
-        <div className="sf-footer-bottom">
-          <p className="sf-footer-legal">
+        <div className="sf-footer-bottom" style={{ justifyContent: 'center' }}>
+          <p className="sf-footer-legal" style={{ textAlign: 'center' }}>
             © {new Date().getFullYear()} StayFinder by GP Tech Studio · GPmulticoncept Enterprises. All rights reserved.
-          </p>
-          <p className="sf-footer-legal">
-            Hotel data powered by LiteAPI
           </p>
         </div>
       </div>
