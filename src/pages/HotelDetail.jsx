@@ -39,7 +39,6 @@ function PhotoCarousel({ images, hotelName }) {
   const goTo = (index) => {
     const clamped = Math.max(0, Math.min(index, total - 1));
     setCurrent(clamped);
-    // Preload next image
     setLoadedIndexes((prev) => new Set([...prev, clamped, clamped + 1]));
   };
 
@@ -55,7 +54,6 @@ function PhotoCarousel({ images, hotelName }) {
     if (touchStartX.current === null) return;
     const dx = e.changedTouches[0].clientX - touchStartX.current;
     const dy = Math.abs(e.changedTouches[0].clientY - touchStartY.current);
-    // Only register horizontal swipe if not mostly vertical
     if (Math.abs(dx) > 40 && dy < 60) {
       dx < 0 ? goTo(current + 1) : goTo(current - 1);
     }
@@ -68,12 +66,7 @@ function PhotoCarousel({ images, hotelName }) {
   }
 
   return (
-    <div
-      className="carousel-wrap"
-      onTouchStart={onTouchStart}
-      onTouchEnd={onTouchEnd}
-    >
-      {/* Slides */}
+    <div className="carousel-wrap" onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
       <div className="carousel-track" style={{ transform: `translateX(-${current * 100}%)` }}>
         {images.map((src, i) => (
           <div key={i} className="carousel-slide">
@@ -92,30 +85,21 @@ function PhotoCarousel({ images, hotelName }) {
         ))}
       </div>
 
-      {/* Prev / Next arrows */}
       {total > 1 && (
         <>
           {current > 0 && (
-            <button className="carousel-arrow carousel-arrow--prev" onClick={prev} aria-label="Previous photo">
-              ‹
-            </button>
+            <button className="carousel-arrow carousel-arrow--prev" onClick={prev} aria-label="Previous photo">‹</button>
           )}
           {current < total - 1 && (
-            <button className="carousel-arrow carousel-arrow--next" onClick={next} aria-label="Next photo">
-              ›
-            </button>
+            <button className="carousel-arrow carousel-arrow--next" onClick={next} aria-label="Next photo">›</button>
           )}
         </>
       )}
 
-      {/* Image counter badge */}
       {total > 1 && (
-        <div className="carousel-counter">
-          📷 {current + 1} / {total}
-        </div>
+        <div className="carousel-counter">📷 {current + 1} / {total}</div>
       )}
 
-      {/* Dot indicators (max 8 dots to avoid overflow) */}
       {total > 1 && total <= 20 && (
         <div className="carousel-dots">
           {images.map((_, i) => (
@@ -138,8 +122,10 @@ export default function HotelDetail() {
   const { state } = useLocation();
   const navigate = useNavigate();
 
+  // Start with state data immediately so the page isn't blank,
+  // then always fetch full details to get the images array for the carousel
   const [hotel, setHotel] = useState(state?.hotel || null);
-  const [loading, setLoading] = useState(!state?.hotel);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState('Overview');
   const tabRef = useRef(null);
@@ -149,14 +135,21 @@ export default function HotelDetail() {
   const nights = calcNights(searchParams.checkin, searchParams.checkout);
 
   useEffect(() => {
-    if (hotel) return;
+    // Fix: scroll to top instantly on mount — prevents jumping to footer
+    window.scrollTo({ top: 0, behavior: 'instant' });
+
+    // Fix: always fetch full hotel details regardless of state
+    // so we always have the full images array for the carousel
     (async () => {
       try {
         setLoading(true);
-        const data = await getHotelDetails(hotelId);
-        setHotel(data);
+        const fullData = await getHotelDetails(hotelId);
+        if (fullData) {
+          // Merge full API data on top of state data — API wins
+          setHotel((prev) => ({ ...prev, ...fullData }));
+        }
       } catch {
-        setError('Could not load hotel details.');
+        if (!state?.hotel) setError('Could not load hotel details.');
       } finally {
         setLoading(false);
       }
@@ -187,7 +180,8 @@ export default function HotelDetail() {
     return 'Reviewed';
   };
 
-  if (loading) return <LoadingSpinner text="Loading hotel details..." />;
+  // Show spinner only if we have no state data at all
+  if (loading && !hotel) return <LoadingSpinner text="Loading hotel details..." />;
 
   if (error || !hotel) {
     return (
@@ -204,11 +198,10 @@ export default function HotelDetail() {
 
   const stars = hotel.starRating || hotel.stars || 0;
 
-  // Build images array — LiteAPI can return images as array of strings or array of objects
+  // Build images array from full API response
   const rawImages = hotel.images || hotel.photos || [];
   const carouselImages = rawImages.length > 0
-    ? rawImages.map((img) => (typeof img === 'string' ? img : img.url || img.thumbnail || img.original || ''))
-         .filter(Boolean)
+    ? rawImages.map((img) => (typeof img === 'string' ? img : img.url || img.thumbnail || img.original || '')).filter(Boolean)
     : [hotel.main_photo || hotel.thumbnail].filter(Boolean);
 
   const rooms = rate?.roomTypes || [];
