@@ -283,7 +283,8 @@ export default function HotelDetail() {
   const [activeTab,    setActiveTab]    = useState('Overview');
   const [galleryOpen,  setGalleryOpen]  = useState(false);
   const [galleryStart, setGalleryStart] = useState(0);
-  const tabRef = useRef(null);
+  const tabRef       = useRef(null);
+  const affiliateRef = useRef(null);
 
   const openGallery  = (index = 0) => { setGalleryStart(index); setGalleryOpen(true); };
   const closeGallery = () => setGalleryOpen(false);
@@ -540,7 +541,7 @@ export default function HotelDetail() {
             )}
 
             {/* Affiliate booking panel */}
-            <div className="detail-section">
+            <div className="detail-section" ref={affiliateRef}>
               <AffiliatePanel links={affiliateLinks} hotelName={hotel.name} />
             </div>
           </>
@@ -720,7 +721,10 @@ export default function HotelDetail() {
             <span className="detail-sticky-from">View rates</span>
           )}
         </div>
-        <button className="detail-sticky-btn" onClick={() => switchTab('Overview')}>
+        <button className="detail-sticky-btn" onClick={() => {
+          setActiveTab('Overview');
+          setTimeout(() => affiliateRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
+        }}>
           Compare &amp; Book
         </button>
       </div>
