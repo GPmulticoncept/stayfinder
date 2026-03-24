@@ -225,14 +225,18 @@ export default function HotelDetail() {
     })();
   }, [hotelId]);
 
-  const handleBookNow = () => {
-    const city    = searchParams.city    || hotel?.city    || '';
-    const checkin  = searchParams.checkin  || '';
-    const checkout = searchParams.checkout || '';
-    const adults   = searchParams.adults   || 2;
-    // Replace YOUR_AFFILIATE_ID once registered on Booking.com
-    const url = `https://www.booking.com/searchresults.html?aid=YOUR_AFFILIATE_ID&ss=${encodeURIComponent(hotel?.name || city)}&checkin=${checkin}&checkout=${checkout}&group_adults=${adults}&no_rooms=1`;
-    window.open(url, '_blank');
+  const handleBookNow = (room, roomRate) => {
+    // Use the specific room/rate if passed, otherwise use the first available
+    const selectedRoom = room || rooms[0];
+    const selectedRate = roomRate || rooms[0]?.rates?.[0];
+    navigate('/checkout', {
+      state: {
+        hotel,
+        room:         selectedRoom,
+        rate:         selectedRate,
+        searchParams,
+      },
+    });
   };
 
   const switchTab = (tab) => {
@@ -512,7 +516,7 @@ export default function HotelDetail() {
                         ) : (
                           <p className="detail-price-unavailable">Price on request</p>
                         )}
-                        <button className="detail-book-btn" onClick={handleBookNow}>Book Now</button>
+                        <button className="detail-book-btn" onClick={() => handleBookNow(room, fr)}>Book Now</button>
                       </div>
                     </div>
                   );
@@ -613,8 +617,8 @@ export default function HotelDetail() {
             <span className="detail-sticky-from">View rates</span>
           )}
         </div>
-        <button className="detail-sticky-btn" onClick={handleBookNow}>
-          Find &amp; book hotels
+        <button className="detail-sticky-btn" onClick={() => handleBookNow(rooms[0], rooms[0]?.rates?.[0])}>
+          {rooms.length > 0 ? 'Book Now' : 'Check Availability'}
         </button>
       </div>
 

@@ -72,3 +72,73 @@ export const getHotelDetails = async (hotelId) => {
     return null;
   }
 };
+
+// ─── PREBOOK ───
+// Locks the rate and returns a prebookId + final price confirmation
+// Call this before showing the checkout form
+export const prebookRate = async ({ offerId }) => {
+  try {
+    const res = await fetch(`${BASE_URL}/hotels/prebook`, {
+      method: 'POST',
+      headers: postHeaders(),
+      body: JSON.stringify({ offerId }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      console.error('prebookRate HTTP error:', res.status, data);
+      return { error: data?.message || 'Failed to lock this rate. Please try again.' };
+    }
+    return { data: data.data || data };
+  } catch (err) {
+    console.error('prebookRate error:', err);
+    return { error: 'Network error. Please check your connection and try again.' };
+  }
+};
+
+// ─── BOOK ───
+// Completes the booking with guest info + payment card
+// Returns booking confirmation with bookingId and voucher
+export const bookRate = async ({
+  prebookId,
+  guestFirstName,
+  guestLastName,
+  guestEmail,
+  guestPhone,
+  cardNumber,
+  cardExpireMonth,
+  cardExpireYear,
+  cardCVC,
+  cardHolder,
+}) => {
+  try {
+    const res = await fetch(`${BASE_URL}/hotels/book`, {
+      method: 'POST',
+      headers: postHeaders(),
+      body: JSON.stringify({
+        prebookId,
+        guestInfo: {
+          guestFirstName,
+          guestLastName,
+          guestEmail,
+          guestPhone,
+        },
+        payment: {
+          holderName: cardHolder,
+          number:     cardNumber.replace(/\s/g, ''),
+          expireDate: `${String(cardExpireMonth).padStart(2, '0')}/${String(cardExpireYear).slice(-2)}`,
+          cvc:        cardCVC,
+        },
+        clientReference: `SF-${Date.now()}`,
+      }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      console.error('bookRate HTTP error:', res.status, data);
+      return { error: data?.message || 'Booking failed. Please check your details and try again.' };
+    }
+    return { data: data.data || data };
+  } catch (err) {
+    console.error('bookRate error:', err);
+    return { error: 'Network error. Please check your connection and try again.' };
+  }
+};
