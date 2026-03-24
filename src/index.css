@@ -2020,7 +2020,7 @@ main { flex: 1; }
   border-radius: var(--r); padding: 12px 14px; margin-top: 12px;
   font-size: 0.82rem; color: var(--blue); line-height: 1.65;
 }
-
+.checkout-locking {
   min-height: 60vh; display: flex; flex-direction: column;
   align-items: center; justify-content: center; gap: 14px; text-align: center;
 }
@@ -2122,6 +2122,77 @@ main { flex: 1; }
 }
 .confirm-error h3 { font-family: 'Cormorant Garamond', serif; font-size: 1.5rem; color: var(--navy); }
 .confirm-error p { font-size: 0.9rem; color: var(--muted); }
+
+/* ─────────────────────────────────────────────────────
+   AFFILIATE COMPARISON PANEL
+───────────────────────────────────────────────────── */
+.affiliate-panel {
+  background: var(--white); border-radius: var(--r-lg);
+  border: 1px solid var(--border-light); overflow: hidden;
+  box-shadow: var(--shadow-xs); margin-bottom: 20px;
+}
+.affiliate-panel-header {
+  padding: 18px 20px 14px;
+  border-bottom: 1px solid var(--border-light);
+}
+.affiliate-panel-title {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 1.2rem; font-weight: 500; color: var(--navy); margin-bottom: 4px;
+}
+.affiliate-panel-sub { font-size: 0.82rem; color: var(--muted); }
+
+.affiliate-list { display: flex; flex-direction: column; }
+.affiliate-item {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 20px; gap: 12px;
+  border-bottom: 1px solid var(--border-light);
+  transition: background var(--t); cursor: pointer;
+  text-decoration: none;
+}
+.affiliate-item:last-child { border-bottom: none; }
+.affiliate-item:hover { background: var(--mist); }
+
+.affiliate-left { display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0; }
+.affiliate-logo {
+  width: 40px; height: 40px; border-radius: var(--r-sm);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.2rem; flex-shrink: 0; font-weight: 700;
+  font-family: 'DM Sans', sans-serif;
+}
+.affiliate-logo--booking  { background: #003580; color: #fff; font-size: 0.6rem; }
+.affiliate-logo--agoda    { background: #e31837; color: #fff; font-size: 0.6rem; }
+.affiliate-logo--hotels   { background: #d4111f; color: #fff; font-size: 0.6rem; }
+.affiliate-logo--trip     { background: #00af87; color: #fff; font-size: 0.6rem; }
+.affiliate-logo--expedia  { background: #fbcc33; color: #1b1b1b; font-size: 0.6rem; }
+.affiliate-logo--tp       { background: #1a73e8; color: #fff; font-size: 0.6rem; }
+
+.affiliate-info { flex: 1; min-width: 0; }
+.affiliate-name { font-size: 0.9rem; font-weight: 600; color: var(--ink); margin-bottom: 2px; }
+.affiliate-tag {
+  display: inline-block; font-size: 0.68rem; font-weight: 600;
+  padding: 2px 8px; border-radius: var(--r-full);
+}
+.affiliate-tag--best  { background: var(--green-bg); color: var(--green); border: 1px solid var(--green-border); }
+.affiliate-tag--deals { background: var(--amber-bg); color: var(--amber); border: 1px solid #fde68a; }
+.affiliate-tag--local { background: #f0f4ff; color: #3b5bdb; border: 1px solid #bac8ff; }
+.affiliate-tag--compare { background: var(--mist); color: var(--muted); border: 1px solid var(--border); }
+
+.affiliate-right { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+.affiliate-book-btn {
+  background: var(--navy); color: #fff; border: none;
+  border-radius: var(--r-full); padding: 8px 16px;
+  font-size: 0.78rem; font-weight: 600; white-space: nowrap;
+  font-family: inherit; transition: all var(--t); cursor: pointer;
+}
+.affiliate-item:hover .affiliate-book-btn { background: var(--gold); color: var(--navy); }
+.affiliate-arrow { color: var(--faint); font-size: 1rem; }
+
+.affiliate-note {
+  padding: 12px 20px;
+  font-size: 0.72rem; color: var(--faint);
+  border-top: 1px solid var(--border-light);
+  text-align: center; line-height: 1.6;
+}
 
 /* ─────────────────────────────────────────────────────
    ANIMATIONS

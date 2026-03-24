@@ -183,7 +183,95 @@ function PhotoCarousel({ images, hotelName, onOpenGallery }) {
   );
 }
 
-/* ─── Main Component ─── */
+/* ─── Affiliate Comparison Panel ─── */
+function AffiliatePanel({ links, hotelName }) {
+  const AFFILIATES = [
+    {
+      key: 'booking',
+      logo: 'B.',
+      logoClass: 'affiliate-logo--booking',
+      name: 'Booking.com',
+      tag: 'Best Prices',
+      tagClass: 'affiliate-tag--best',
+    },
+    {
+      key: 'agoda',
+      logo: 'A',
+      logoClass: 'affiliate-logo--agoda',
+      name: 'Agoda',
+      tag: 'Flash Deals',
+      tagClass: 'affiliate-tag--deals',
+    },
+    {
+      key: 'hotels',
+      logo: 'H.',
+      logoClass: 'affiliate-logo--hotels',
+      name: 'Hotels.com',
+      tag: 'Loyalty Rewards',
+      tagClass: 'affiliate-tag--compare',
+    },
+    {
+      key: 'trip',
+      logo: 'T.',
+      logoClass: 'affiliate-logo--trip',
+      name: 'Trip.com',
+      tag: 'Compare Rates',
+      tagClass: 'affiliate-tag--compare',
+    },
+    {
+      key: 'expedia',
+      logo: 'Ex',
+      logoClass: 'affiliate-logo--expedia',
+      name: 'Expedia',
+      tag: 'Bundle & Save',
+      tagClass: 'affiliate-tag--deals',
+    },
+    {
+      key: 'tp',
+      logo: 'TP',
+      logoClass: 'affiliate-logo--tp',
+      name: 'Travelpayouts',
+      tag: 'Compare All',
+      tagClass: 'affiliate-tag--compare',
+    },
+  ];
+
+  return (
+    <div className="affiliate-panel">
+      <div className="affiliate-panel-header">
+        <h3 className="affiliate-panel-title">Choose Where to Book</h3>
+        <p className="affiliate-panel-sub">
+          Compare prices across top platforms and pick the best deal for <strong>{hotelName}</strong>
+        </p>
+      </div>
+      <div className="affiliate-list">
+        {AFFILIATES.map((a) => (
+          <a
+            key={a.key}
+            className="affiliate-item"
+            href={links[a.key]}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            <div className="affiliate-left">
+              <div className={`affiliate-logo ${a.logoClass}`}>{a.logo}</div>
+              <div className="affiliate-info">
+                <p className="affiliate-name">{a.name}</p>
+                <span className={`affiliate-tag ${a.tagClass}`}>{a.tag}</span>
+              </div>
+            </div>
+            <div className="affiliate-right">
+              <span className="affiliate-book-btn">Book →</span>
+            </div>
+          </a>
+        ))}
+      </div>
+      <p className="affiliate-note">
+        🔒 You'll be taken to the partner's secure site to complete your booking. Prices may vary across platforms.
+      </p>
+    </div>
+  );
+}
 export default function HotelDetail() {
   const { hotelId } = useParams();
   const { state }   = useLocation();
@@ -225,19 +313,25 @@ export default function HotelDetail() {
     })();
   }, [hotelId]);
 
-  const handleBookNow = (room, roomRate) => {
-    // Use the specific room/rate if passed, otherwise use the first available
-    const selectedRoom = room || rooms[0];
-    const selectedRate = roomRate || rooms[0]?.rates?.[0];
-    navigate('/checkout', {
-      state: {
-        hotel,
-        room:         selectedRoom,
-        rate:         selectedRate,
-        searchParams,
-      },
-    });
+  // ── Affiliate booking links ──
+  const buildAffiliateLinks = (targetHotel, sp) => {
+    const name     = encodeURIComponent(targetHotel?.name || '');
+    const city     = encodeURIComponent(targetHotel?.city || sp?.city || '');
+    const checkin  = sp?.checkin  || '';
+    const checkout = sp?.checkout || '';
+    const adults   = sp?.adults   || 2;
+
+    return {
+      booking: `https://www.booking.com/searchresults.html?aid=304142&ss=${name}&checkin=${checkin}&checkout=${checkout}&group_adults=${adults}&no_rooms=1`,
+      agoda:   `https://www.agoda.com/search?city=${city}&checkIn=${checkin}&checkOut=${checkout}&adults=${adults}&textToSearch=${name}`,
+      hotels:  `https://www.hotels.com/search.do?q-destination=${city}&q-check-in=${checkin}&q-check-out=${checkout}&q-rooms=1&q-room-0-adults=${adults}`,
+      trip:    `https://www.trip.com/hotels/list?city=${city}&checkin=${checkin}&checkout=${checkout}&adult=${adults}&keyword=${name}`,
+      expedia: `https://www.expedia.com/Hotel-Search?destination=${city}&startDate=${checkin}&endDate=${checkout}&adults=${adults}`,
+      tp:      `https://www.travelpayouts.com/hotels?destination=${city}&checkin=${checkin}&checkout=${checkout}&adults=${adults}`,
+    };
   };
+
+  const handleAffiliate = (url) => window.open(url, '_blank', 'noopener,noreferrer');
 
   const switchTab = (tab) => {
     setActiveTab(tab);
@@ -278,6 +372,7 @@ export default function HotelDetail() {
   const reviews       = hotel.reviews || [];
   const lowestPrice   = rooms[0]?.rates?.[0]?.retailRate?.total?.[0];
   const lowestAmt     = lowestPrice ? parseFloat(lowestPrice.amount) : null;
+  const affiliateLinks = buildAffiliateLinks(hotel, searchParams);
 
   return (
     <div className="detail-page">
@@ -426,7 +521,7 @@ export default function HotelDetail() {
                     const fr    = room.rates?.[0];
                     const price = fr?.retailRate?.total?.[0];
                     return (
-                      <div key={i} className="detail-room-preview-card" onClick={handleBookNow}>
+                      <div key={i} className="detail-room-preview-card" onClick={() => handleAffiliate(affiliateLinks.booking)}>
                         <div className="detail-room-preview-img">🛏️</div>
                         <div className="detail-room-preview-info">
                           <p className="detail-room-preview-name">{room.name || `Room Type ${i + 1}`}</p>
@@ -443,6 +538,11 @@ export default function HotelDetail() {
                 </div>
               </div>
             )}
+
+            {/* Affiliate booking panel */}
+            <div className="detail-section">
+              <AffiliatePanel links={affiliateLinks} hotelName={hotel.name} />
+            </div>
           </>
         )}
 
@@ -469,7 +569,10 @@ export default function HotelDetail() {
               <div className="detail-no-rooms">
                 <span className="detail-no-rooms-icon">🛏️</span>
                 <p className="detail-no-rooms-msg">No rooms available for your selected dates.</p>
-                <button className="detail-alt-btn" onClick={() => navigate(-1)}>See Other Hotels</button>
+                <p style={{ fontSize: '0.82rem', color: 'var(--muted)', margin: '8px 0 16px' }}>
+                  Check availability directly on a booking platform:
+                </p>
+                <AffiliatePanel links={affiliateLinks} hotelName={hotel.name} />
               </div>
             ) : (
               <div className="detail-rooms-list">
@@ -516,7 +619,7 @@ export default function HotelDetail() {
                         ) : (
                           <p className="detail-price-unavailable">Price on request</p>
                         )}
-                        <button className="detail-book-btn" onClick={() => handleBookNow(room, fr)}>Book Now</button>
+                        <button className="detail-book-btn" onClick={() => handleAffiliate(affiliateLinks.booking)}>Book Now</button>
                       </div>
                     </div>
                   );
@@ -617,8 +720,8 @@ export default function HotelDetail() {
             <span className="detail-sticky-from">View rates</span>
           )}
         </div>
-        <button className="detail-sticky-btn" onClick={() => handleBookNow(rooms[0], rooms[0]?.rates?.[0])}>
-          {rooms.length > 0 ? 'Book Now' : 'Check Availability'}
+        <button className="detail-sticky-btn" onClick={() => switchTab('Overview')}>
+          Compare &amp; Book
         </button>
       </div>
 
