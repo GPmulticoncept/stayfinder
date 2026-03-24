@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { prebookRate, bookRate } from '../services/liteapi';
+import { prebookRate, bookRate, extractOfferId } from '../services/liteapi';
 
 const BOARD_LABELS = {
   RO: 'Room Only', BB: 'Bed & Breakfast', BI: 'Bed & Breakfast',
@@ -14,9 +14,8 @@ const calcNights = (checkin, checkout) => {
   return nights > 0 ? nights : 1;
 };
 
-const formatCard = (val) => {
-  return val.replace(/\D/g, '').slice(0, 16).replace(/(.{4})/g, '$1 ').trim();
-};
+const formatCard = (val) =>
+  val.replace(/\D/g, '').slice(0, 16).replace(/(.{4})/g, '$1 ').trim();
 
 const formatExpiry = (val) => {
   const digits = val.replace(/\D/g, '').slice(0, 4);
@@ -24,11 +23,11 @@ const formatExpiry = (val) => {
   return digits;
 };
 
-// Sandbox test cards from LiteAPI docs
+// LiteAPI sandbox test cards
 const TEST_CARDS = [
-  { label: 'Visa (success)',    number: '4111 1111 1111 1111' },
+  { label: 'Visa (success)',       number: '4111 1111 1111 1111' },
   { label: 'Mastercard (success)', number: '5500 0000 0000 0004' },
-  { label: 'Visa (declined)',   number: '4000 0000 0000 0002' },
+  { label: 'Visa (declined)',      number: '4000 0000 0000 0002' },
 ];
 
 export default function Checkout() {
@@ -42,25 +41,36 @@ export default function Checkout() {
   const [prebooking,   setPrebooking]   = useState(true);
   const [prebookError, setPrebookError] = useState(null);
 
-  const [step, setStep] = useState('guest'); // guest | payment | processing
-
-  const [guest, setGuest] = useState({
-    firstName: '', lastName: '', email: '', phone: '',
-  });
-  const [card, setCard] = useState({
-    number: '', expiry: '', cvc: '', holder: '',
-  });
-  const [errors, setErrors] = useState({});
+  const [step,      setStep]      = useState('guest'); // guest | payment | processing
+  const [guest,     setGuest]     = useState({ firstName: '', lastName: '', email: '', phone: '' });
+  const [card,      setCard]      = useState({ number: '', expiry: '', cvc: '', holder: '' });
+  const [errors,    setErrors]    = useState({});
   const [bookError, setBookError] = useState(null);
 
   const nights  = calcNights(searchParams?.checkin, searchParams?.checkout);
   const price   = rate?.retailRate?.total?.[0];
-  const offerId = rate?.offerId || rate?.id;
 
-  // Prebook on mount to lock the rate
+  // Extract offerId using all known key variants
+  const offerId = extractOfferId(rate);
+
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'instant' });
-    if (!offerId) { setPrebookError('No rate selected. Please go back and select a room.'); setPrebooking(false); return; }
+
+    if (!rate) {
+      setPrebookError('No room rate found. Please go back and select a room.');
+      setPrebooking(false);
+      return;
+    }
+
+    if (!offerId) {
+      // Rate exists but has no bookable offerId — sandbox limitation
+      setPrebookError(
+        'This rate is not bookable in sandbox mode. LiteAPI sandbox only supports booking on select hotels. ' +
+        'Switch to the production API key to unlock full booking on all hotels.'
+      );
+      setPrebooking(false);
+      return;
+    }
 
     (async () => {
       const res = await prebookRate({ offerId });
@@ -76,8 +86,8 @@ export default function Checkout() {
 
   const validateGuest = () => {
     const e = {};
-    if (!guest.firstName.trim())  e.firstName = 'Required';
-    if (!guest.lastName.trim())   e.lastName  = 'Required';
+    if (!guest.firstName.trim()) e.firstName = 'Required';
+    if (!guest.lastName.trim())  e.lastName  = 'Required';
     if (!guest.email.trim() || !/\S+@\S+\.\S+/.test(guest.email)) e.email = 'Valid email required';
     if (!guest.phone.trim() || guest.phone.length < 7) e.phone = 'Valid phone required';
     setErrors(e);
@@ -95,9 +105,7 @@ export default function Checkout() {
     return Object.keys(e).length === 0;
   };
 
-  const handleGuestNext = () => {
-    if (validateGuest()) setStep('payment');
-  };
+  const handleGuestNext = () => { if (validateGuest()) setStep('payment'); };
 
   const handleBook = async () => {
     if (!validateCard()) return;
@@ -125,24 +133,22 @@ export default function Checkout() {
       setStep('payment');
     } else {
       navigate('/booking-confirmation', {
-        state: {
-          booking:      res.data,
-          hotel,
-          room,
-          searchParams,
-          price,
-          nights,
-        },
+        state: { booking: res.data, hotel, room, searchParams, price, nights },
         replace: true,
       });
     }
   };
 
   const fillTestCard = (num) => {
-    setCard({ number: num, expiry: '12/26', cvc: '123', holder: `${guest.firstName || 'Test'} ${guest.lastName || 'User'}` });
+    setCard({
+      number: num,
+      expiry: '12/26',
+      cvc: '123',
+      holder: `${guest.firstName || 'Test'} ${guest.lastName || 'User'}`.trim(),
+    });
   };
 
-  // ── Loading / error state ──
+  // ── Loading state ──
   if (prebooking) {
     return (
       <div className="checkout-page">
@@ -155,14 +161,23 @@ export default function Checkout() {
     );
   }
 
+  // ── Error state ──
   if (prebookError || !hotel || !room) {
+    const isSandboxLimit = prebookError?.includes('sandbox');
     return (
       <div className="checkout-page">
         <div className="checkout-error-wrap">
-          <span style={{ fontSize: '2.5rem' }}>⚠️</span>
-          <h3>Unable to proceed</h3>
+          <span style={{ fontSize: '2.5rem' }}>{isSandboxLimit ? '🔒' : '⚠️'}</span>
+          <h3>{isSandboxLimit ? 'Sandbox Limitation' : 'Unable to proceed'}</h3>
           <p>{prebookError || 'Missing booking details. Please go back and try again.'}</p>
-          <button className="sf-empty-btn" onClick={() => navigate(-1)}>← Go Back</button>
+          {isSandboxLimit && (
+            <div className="checkout-sandbox-note">
+              <p>To test the full booking flow, use one of the sandbox test hotels that support booking, or switch to the LiteAPI production key in your Vercel environment variables.</p>
+            </div>
+          )}
+          <button className="sf-empty-btn" onClick={() => navigate(-1)} style={{ marginTop: 20 }}>
+            ← Go Back
+          </button>
         </div>
       </div>
     );
@@ -176,25 +191,22 @@ export default function Checkout() {
     <div className="checkout-page">
       <div className="checkout-inner">
 
-        {/* ── HEADER ── */}
         <div className="checkout-header">
           <button className="checkout-back-btn" onClick={() => navigate(-1)}>← Back</button>
           <h1 className="checkout-title">Complete Your Booking</h1>
         </div>
 
-        {/* ── PRICE CHANGE ALERT ── */}
         {priceChanged && (
           <div className="checkout-price-alert">
-            ⚠️ The price has been updated to <strong>{finalPrice?.currency} {parseFloat(finalPrice?.amount).toLocaleString()}</strong> per night.
+            ⚠️ Price updated to <strong>{finalPrice?.currency} {parseFloat(finalPrice?.amount).toLocaleString()}</strong> / night.
           </div>
         )}
 
         <div className="checkout-layout">
 
-          {/* ── LEFT: FORM ── */}
+          {/* ── FORM ── */}
           <div className="checkout-form-col">
 
-            {/* Step indicators */}
             <div className="checkout-steps">
               <div className={`checkout-step ${step !== 'guest' ? 'done' : 'active'}`}>
                 <span className="checkout-step-num">{step !== 'guest' ? '✓' : '1'}</span>
@@ -207,19 +219,17 @@ export default function Checkout() {
               </div>
             </div>
 
-            {/* ── STEP 1: Guest Details ── */}
+            {/* ── STEP 1: Guest ── */}
             {step === 'guest' && (
               <div className="checkout-card">
                 <h2 className="checkout-card-title">👤 Guest Information</h2>
                 <p className="checkout-card-sub">Enter the details of the main guest</p>
-
                 <div className="checkout-fields">
                   <div className="checkout-field-row">
                     <div className="checkout-field">
                       <label>First Name</label>
                       <input
-                        type="text"
-                        placeholder="John"
+                        type="text" placeholder="John"
                         value={guest.firstName}
                         onChange={(e) => setGuest({ ...guest, firstName: e.target.value })}
                         className={errors.firstName ? 'has-error' : ''}
@@ -229,8 +239,7 @@ export default function Checkout() {
                     <div className="checkout-field">
                       <label>Last Name</label>
                       <input
-                        type="text"
-                        placeholder="Doe"
+                        type="text" placeholder="Doe"
                         value={guest.lastName}
                         onChange={(e) => setGuest({ ...guest, lastName: e.target.value })}
                         className={errors.lastName ? 'has-error' : ''}
@@ -238,25 +247,21 @@ export default function Checkout() {
                       {errors.lastName && <span className="checkout-error">{errors.lastName}</span>}
                     </div>
                   </div>
-
                   <div className="checkout-field">
                     <label>Email Address</label>
                     <input
-                      type="email"
-                      placeholder="john@example.com"
+                      type="email" placeholder="john@example.com"
                       value={guest.email}
                       onChange={(e) => setGuest({ ...guest, email: e.target.value })}
                       className={errors.email ? 'has-error' : ''}
                     />
                     {errors.email && <span className="checkout-error">{errors.email}</span>}
-                    <span className="checkout-field-hint">Booking confirmation will be sent here</span>
+                    <span className="checkout-field-hint">Booking confirmation sent here</span>
                   </div>
-
                   <div className="checkout-field">
                     <label>Phone Number</label>
                     <input
-                      type="tel"
-                      placeholder="+234 800 000 0000"
+                      type="tel" placeholder="+234 800 000 0000"
                       value={guest.phone}
                       onChange={(e) => setGuest({ ...guest, phone: e.target.value })}
                       className={errors.phone ? 'has-error' : ''}
@@ -264,7 +269,6 @@ export default function Checkout() {
                     {errors.phone && <span className="checkout-error">{errors.phone}</span>}
                   </div>
                 </div>
-
                 <button className="checkout-next-btn" onClick={handleGuestNext}>
                   Continue to Payment →
                 </button>
@@ -277,36 +281,31 @@ export default function Checkout() {
                 <h2 className="checkout-card-title">💳 Payment Details</h2>
                 <p className="checkout-card-sub">Your card details are encrypted and secure</p>
 
-                {/* Sandbox test card hints */}
-                {import.meta.env.DEV || import.meta.env.VITE_LITEAPI_KEY?.includes('sand') ? (
-                  <div className="checkout-test-cards">
-                    <p className="checkout-test-label">🧪 Sandbox test cards:</p>
-                    {TEST_CARDS.map((tc) => (
-                      <button key={tc.number} className="checkout-test-pill" onClick={() => fillTestCard(tc.number)}>
-                        {tc.label}: {tc.number}
-                      </button>
-                    ))}
-                  </div>
-                ) : null}
+                {/* Sandbox test cards */}
+                <div className="checkout-test-cards">
+                  <p className="checkout-test-label">🧪 Sandbox test cards — tap to fill:</p>
+                  {TEST_CARDS.map((tc) => (
+                    <button key={tc.number} className="checkout-test-pill" onClick={() => fillTestCard(tc.number)}>
+                      {tc.label}: {tc.number}
+                    </button>
+                  ))}
+                </div>
 
                 <div className="checkout-fields">
                   <div className="checkout-field">
                     <label>Cardholder Name</label>
                     <input
-                      type="text"
-                      placeholder="John Doe"
+                      type="text" placeholder="John Doe"
                       value={card.holder}
                       onChange={(e) => setCard({ ...card, holder: e.target.value })}
                       className={errors.holder ? 'has-error' : ''}
                     />
                     {errors.holder && <span className="checkout-error">{errors.holder}</span>}
                   </div>
-
                   <div className="checkout-field">
                     <label>Card Number</label>
                     <input
-                      type="text"
-                      inputMode="numeric"
+                      type="text" inputMode="numeric"
                       placeholder="1234 5678 9012 3456"
                       value={card.number}
                       onChange={(e) => setCard({ ...card, number: formatCard(e.target.value) })}
@@ -315,14 +314,11 @@ export default function Checkout() {
                     />
                     {errors.number && <span className="checkout-error">{errors.number}</span>}
                   </div>
-
                   <div className="checkout-field-row">
                     <div className="checkout-field">
-                      <label>Expiry Date</label>
+                      <label>Expiry</label>
                       <input
-                        type="text"
-                        inputMode="numeric"
-                        placeholder="MM/YY"
+                        type="text" inputMode="numeric" placeholder="MM/YY"
                         value={card.expiry}
                         onChange={(e) => setCard({ ...card, expiry: formatExpiry(e.target.value) })}
                         className={errors.expiry ? 'has-error' : ''}
@@ -333,9 +329,7 @@ export default function Checkout() {
                     <div className="checkout-field">
                       <label>CVC / CVV</label>
                       <input
-                        type="text"
-                        inputMode="numeric"
-                        placeholder="123"
+                        type="text" inputMode="numeric" placeholder="123"
                         value={card.cvc}
                         onChange={(e) => setCard({ ...card, cvc: e.target.value.replace(/\D/g, '').slice(0, 4) })}
                         className={errors.cvc ? 'has-error' : ''}
@@ -346,11 +340,7 @@ export default function Checkout() {
                   </div>
                 </div>
 
-                {bookError && (
-                  <div className="checkout-book-error">
-                    ❌ {bookError}
-                  </div>
-                )}
+                {bookError && <div className="checkout-book-error">❌ {bookError}</div>}
 
                 <div className="checkout-security-note">
                   🔒 256-bit SSL encryption · Your card is never stored
@@ -361,9 +351,7 @@ export default function Checkout() {
                     className="checkout-back-step-btn"
                     onClick={() => setStep('guest')}
                     disabled={step === 'processing'}
-                  >
-                    ← Back
-                  </button>
+                  >← Back</button>
                   <button
                     className="checkout-pay-btn"
                     onClick={handleBook}
@@ -374,65 +362,50 @@ export default function Checkout() {
                         <span className="checkout-pay-spinner" /> Processing…
                       </span>
                     ) : (
-                      <>
-                        🔒 Pay {finalPrice ? `${finalPrice.currency} ${(parseFloat(finalPrice.amount) * nights).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}` : 'Now'}
-                      </>
+                      <>🔒 Pay {finalPrice
+                        ? `${finalPrice.currency} ${(parseFloat(finalPrice.amount) * nights).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`
+                        : 'Now'
+                      }</>
                     )}
                   </button>
                 </div>
               </div>
             )}
-
           </div>
 
-          {/* ── RIGHT: BOOKING SUMMARY ── */}
+          {/* ── SUMMARY ── */}
           <div className="checkout-summary">
             <div className="checkout-summary-card">
               <h3 className="checkout-summary-title">Booking Summary</h3>
-
               {hotel.main_photo && (
-                <img
-                  src={hotel.main_photo}
-                  alt={hotel.name}
-                  className="checkout-summary-img"
-                  loading="lazy"
-                />
+                <img src={hotel.main_photo} alt={hotel.name} className="checkout-summary-img" loading="lazy" />
               )}
-
               <div className="checkout-summary-hotel">
                 <p className="checkout-summary-name">{hotel.name}</p>
                 <p className="checkout-summary-location">📍 {[hotel.city, hotel.country].filter(Boolean).join(', ')}</p>
               </div>
-
               <div className="checkout-summary-divider" />
-
               <div className="checkout-summary-row">
-                <span>Room</span>
-                <span>{room?.name || 'Standard Room'}</span>
+                <span>Room</span><span>{room?.name || 'Standard Room'}</span>
               </div>
               <div className="checkout-summary-row">
                 <span>Board</span>
                 <span>{BOARD_LABELS[rate?.boardType?.toUpperCase()] || 'Room Only'}</span>
               </div>
               <div className="checkout-summary-row">
-                <span>Check-in</span>
-                <span>{searchParams?.checkin}</span>
+                <span>Check-in</span><span>{searchParams?.checkin}</span>
               </div>
               <div className="checkout-summary-row">
-                <span>Check-out</span>
-                <span>{searchParams?.checkout}</span>
+                <span>Check-out</span><span>{searchParams?.checkout}</span>
               </div>
               <div className="checkout-summary-row">
                 <span>Guests</span>
                 <span>{searchParams?.adults || 1} Adult{searchParams?.adults > 1 ? 's' : ''}</span>
               </div>
               <div className="checkout-summary-row">
-                <span>Nights</span>
-                <span>{nights}</span>
+                <span>Nights</span><span>{nights}</span>
               </div>
-
               <div className="checkout-summary-divider" />
-
               {finalPrice && (
                 <>
                   <div className="checkout-summary-row">
@@ -441,11 +414,12 @@ export default function Checkout() {
                   </div>
                   <div className="checkout-summary-row checkout-summary-total">
                     <span>Total</span>
-                    <span>{finalPrice.currency} {(parseFloat(finalPrice.amount) * nights).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</span>
+                    <span>
+                      {finalPrice.currency} {(parseFloat(finalPrice.amount) * nights).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                    </span>
                   </div>
                 </>
               )}
-
               <div className="checkout-summary-refund">
                 {rate?.refundableTag?.toUpperCase() === 'FULLY_REFUNDABLE' || rate?.refundableTag?.toUpperCase() === 'REFUNDABLE'
                   ? '✅ Free cancellation available'

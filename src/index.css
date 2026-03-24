@@ -2015,7 +2015,12 @@ main { flex: 1; }
 .checkout-summary-refund { font-size: 0.75rem; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border-light); }
 
 /* Checkout locking / error states */
-.checkout-locking {
+.checkout-sandbox-note {
+  background: var(--blue-bg); border: 1px solid var(--blue-border);
+  border-radius: var(--r); padding: 12px 14px; margin-top: 12px;
+  font-size: 0.82rem; color: var(--blue); line-height: 1.65;
+}
+
   min-height: 60vh; display: flex; flex-direction: column;
   align-items: center; justify-content: center; gap: 14px; text-align: center;
 }
