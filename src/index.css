@@ -2165,6 +2165,7 @@ main { flex: 1; }
 .affiliate-logo--trip     { background: #00af87; color: #fff; font-size: 0.6rem; }
 .affiliate-logo--expedia  { background: #fbcc33; color: #1b1b1b; font-size: 0.6rem; }
 .affiliate-logo--tp       { background: #1a73e8; color: #fff; font-size: 0.6rem; }
+.affiliate-logo--hotellook { background: #1a73e8; color: #fff; font-size: 0.6rem; }
 
 .affiliate-info { flex: 1; min-width: 0; }
 .affiliate-name { font-size: 0.9rem; font-weight: 600; color: var(--ink); margin-bottom: 2px; }

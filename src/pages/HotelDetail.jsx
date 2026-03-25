@@ -36,6 +36,68 @@ const getScoreLabel = (score) => {
 const TRAVELLER_ICONS = { solo: '🧍', business: '💼', couple: '❤️', family: '👨‍👩‍👧', friends: '👥' };
 const TABS = ['Overview', 'Rooms', 'Reviews', 'Description'];
 
+// ─── Derive dynamic guest mix from hotel attributes ───
+const deriveGuestMix = (hotel) => {
+  const name       = (hotel?.name || '').toLowerCase();
+  const facArr     = hotel?.facilities || hotel?.amenities || [];
+  const facStr     = facArr.map(f => typeof f === 'string' ? f : (f.name || f.facilityName || '')).join(' ').toLowerCase();
+  const desc       = (hotel?.hotelDescription || hotel?.description || '').toLowerCase();
+  const stars      = parseFloat(hotel?.starRating || hotel?.stars || 3);
+  const combined   = name + ' ' + facStr + ' ' + desc;
+
+  let solo = 22, business = 20, couple = 28, family = 18, friends = 12;
+
+  // Star rating adjustments
+  if (stars >= 5)      { business += 14; couple += 6; family -= 12; friends -= 8; }
+  else if (stars >= 4) { business += 8; couple += 4; family -= 6; friends -= 6; }
+  else if (stars <= 2) { solo += 10; friends += 8; business -= 12; couple -= 6; }
+
+  // Business/corporate keywords
+  if (/business|executive|corporate|conference|meeting room|work desk|co-work/.test(combined)) {
+    business += 14; solo += 4; family -= 10; friends -= 8;
+  }
+  // Resort/beach/leisure keywords
+  if (/resort|beach|pool|spa|wellness|retreat|villa|ocean|lake|mountain|safari/.test(combined)) {
+    couple += 12; family += 8; business -= 12; solo -= 8;
+  }
+  // Family-friendly keywords
+  if (/kids|children|family|playground|waterpark|crib|baby|connecting room/.test(combined)) {
+    family += 16; couple -= 6; business -= 6; solo -= 4;
+  }
+  // Romantic/couple keywords
+  if (/romantic|honeymoon|couple|suite|jacuzzi|rooftop|boutique|luxury/.test(combined)) {
+    couple += 14; family -= 8; business -= 4; friends -= 2;
+  }
+  // Budget/hostel/social keywords
+  if (/hostel|backpacker|dormitory|shared|budget|party|nightlife|social/.test(combined)) {
+    friends += 16; solo += 8; business -= 14; couple -= 10;
+  }
+  // Apartment/suite keywords
+  if (/suite|apartment|serviced|extended stay|long stay|residence/.test(combined)) {
+    family += 10; business += 6; couple -= 4; solo -= 4; friends -= 8;
+  }
+
+  // Clamp all values to minimum 3
+  const arr = [
+    { type: 'Solo',     pct: Math.max(3, solo),     icon: TRAVELLER_ICONS.solo },
+    { type: 'Business', pct: Math.max(3, business), icon: TRAVELLER_ICONS.business },
+    { type: 'Couple',   pct: Math.max(3, couple),   icon: TRAVELLER_ICONS.couple },
+    { type: 'Family',   pct: Math.max(3, family),   icon: TRAVELLER_ICONS.family },
+    { type: 'Friends',  pct: Math.max(3, friends),  icon: TRAVELLER_ICONS.friends },
+  ];
+
+  // Normalise to exactly 100
+  const total = arr.reduce((s, x) => s + x.pct, 0);
+  const normalised = arr.map(x => ({ ...x, pct: Math.round((x.pct / total) * 100) }));
+
+  // Fix rounding drift on the largest item
+  const diff = 100 - normalised.reduce((s, x) => s + x.pct, 0);
+  const maxIdx = normalised.reduce((mi, x, i, a) => x.pct > a[mi].pct ? i : mi, 0);
+  normalised[maxIdx].pct += diff;
+
+  return normalised.sort((a, b) => b.pct - a.pct);
+};
+
 /* ─── Fullscreen Gallery Overlay ─── */
 function GalleryOverlay({ images, startIndex, hotelName, onClose }) {
   const [current, setCurrent] = useState(startIndex);
@@ -184,90 +246,98 @@ function PhotoCarousel({ images, hotelName, onOpenGallery }) {
 }
 
 /* ─── Affiliate Comparison Panel ─── */
-function AffiliatePanel({ links, hotelName }) {
-  const AFFILIATES = [
-    {
-      key: 'booking',
-      logo: 'B.',
-      logoClass: 'affiliate-logo--booking',
-      name: 'Booking.com',
-      tag: 'Best Prices',
-      tagClass: 'affiliate-tag--best',
-    },
-    {
-      key: 'agoda',
-      logo: 'A',
-      logoClass: 'affiliate-logo--agoda',
-      name: 'Agoda',
-      tag: 'Flash Deals',
-      tagClass: 'affiliate-tag--deals',
-    },
-    {
-      key: 'hotels',
-      logo: 'H.',
-      logoClass: 'affiliate-logo--hotels',
-      name: 'Hotels.com',
-      tag: 'Loyalty Rewards',
-      tagClass: 'affiliate-tag--compare',
-    },
-    {
-      key: 'trip',
-      logo: 'T.',
-      logoClass: 'affiliate-logo--trip',
-      name: 'Trip.com',
-      tag: 'Compare Rates',
-      tagClass: 'affiliate-tag--compare',
-    },
-    {
-      key: 'expedia',
-      logo: 'Ex',
-      logoClass: 'affiliate-logo--expedia',
-      name: 'Expedia',
-      tag: 'Bundle & Save',
-      tagClass: 'affiliate-tag--deals',
-    },
-    {
-      key: 'tp',
-      logo: 'TP',
-      logoClass: 'affiliate-logo--tp',
-      name: 'Travelpayouts',
-      tag: 'Compare All',
-      tagClass: 'affiliate-tag--compare',
-    },
-  ];
+
+// All platform definitions
+const AFFILIATE_DEFS = {
+  booking: {
+    logo: 'B.', logoClass: 'affiliate-logo--booking',
+    name: 'Booking.com', tag: 'Best Prices', tagClass: 'affiliate-tag--best',
+  },
+  agoda: {
+    logo: 'A', logoClass: 'affiliate-logo--agoda',
+    name: 'Agoda', tag: 'Flash Deals', tagClass: 'affiliate-tag--deals',
+  },
+  hotels: {
+    logo: 'H.', logoClass: 'affiliate-logo--hotels',
+    name: 'Hotels.com', tag: 'Loyalty Rewards', tagClass: 'affiliate-tag--compare',
+  },
+  trip: {
+    logo: 'T.', logoClass: 'affiliate-logo--trip',
+    name: 'Trip.com', tag: 'Compare Rates', tagClass: 'affiliate-tag--compare',
+  },
+  expedia: {
+    logo: 'Ex', logoClass: 'affiliate-logo--expedia',
+    name: 'Expedia', tag: 'Bundle & Save', tagClass: 'affiliate-tag--deals',
+  },
+  hotellook: {
+    logo: 'HL', logoClass: 'affiliate-logo--tp',
+    name: 'Hotellook', tag: 'Compare All', tagClass: 'affiliate-tag--compare',
+  },
+};
+
+// Country → relevant platforms
+const ASIA_CODES    = ['JP','SG','TH','CN','IN','ID','MY','PH','KR','VN','HK','TW','MO','KH','MM','LK','BD','NP'];
+const MIDEAST_CODES = ['AE','QA','SA','BH','KW','OM','JO','LB','EG','MA','TN'];
+const WESTERN_CODES = ['US','GB','CA','AU','NZ','DE','FR','IT','ES','NL','BE','CH','AT','SE','NO','DK','FI','IE','PT','GR'];
+const AFRICA_CODES  = ['NG','GH','KE','ZA','TZ','UG','RW','ET','CM','SN','CI'];
+
+const getRelevantAffiliateKeys = (countryCode) => {
+  const cc = (countryCode || '').toUpperCase();
+  // Always include Booking.com + Hotellook as baseline
+  const keys = new Set(['booking', 'hotellook']);
+
+  if (ASIA_CODES.includes(cc))    { keys.add('agoda'); keys.add('trip'); }
+  if (MIDEAST_CODES.includes(cc)) { keys.add('agoda'); keys.add('trip'); keys.add('expedia'); }
+  if (WESTERN_CODES.includes(cc)) { keys.add('hotels'); keys.add('expedia'); }
+  if (AFRICA_CODES.includes(cc))  { keys.add('hotels'); keys.add('expedia'); }
+
+  // Ensure at least 3 options
+  if (keys.size < 3) { keys.add('expedia'); keys.add('hotels'); }
+
+  // Preserve definition order
+  return Object.keys(AFFILIATE_DEFS).filter(k => keys.has(k));
+};
+
+function AffiliatePanel({ links, hotelName, countryCode }) {
+  const relevantKeys = getRelevantAffiliateKeys(countryCode);
 
   return (
     <div className="affiliate-panel">
       <div className="affiliate-panel-header">
         <h3 className="affiliate-panel-title">Choose Where to Book</h3>
         <p className="affiliate-panel-sub">
-          Compare prices across top platforms and pick the best deal for <strong>{hotelName}</strong>
+          Compare prices and pick the best deal for <strong>{hotelName}</strong>
         </p>
       </div>
       <div className="affiliate-list">
-        {AFFILIATES.map((a) => (
-          <a
-            key={a.key}
-            className="affiliate-item"
-            href={links[a.key]}
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <div className="affiliate-left">
-              <div className={`affiliate-logo ${a.logoClass}`}>{a.logo}</div>
-              <div className="affiliate-info">
-                <p className="affiliate-name">{a.name}</p>
-                <span className={`affiliate-tag ${a.tagClass}`}>{a.tag}</span>
+        {relevantKeys.map((key) => {
+          const a = AFFILIATE_DEFS[key];
+          const url = links[key];
+          if (!url) return null;
+          return (
+            <a
+              key={key}
+              className="affiliate-item"
+              href={url}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <div className="affiliate-left">
+                <div className={`affiliate-logo ${a.logoClass}`}>{a.logo}</div>
+                <div className="affiliate-info">
+                  <p className="affiliate-name">{a.name}</p>
+                  <span className={`affiliate-tag ${a.tagClass}`}>{a.tag}</span>
+                </div>
               </div>
-            </div>
-            <div className="affiliate-right">
-              <span className="affiliate-book-btn">Book →</span>
-            </div>
-          </a>
-        ))}
+              <div className="affiliate-right">
+                <span className="affiliate-book-btn">Book →</span>
+              </div>
+            </a>
+          );
+        })}
       </div>
       <p className="affiliate-note">
-        🔒 You'll be taken to the partner's secure site to complete your booking. Prices may vary across platforms.
+        🔒 You'll be taken to the partner's secure site to complete your booking. Prices may vary.
       </p>
     </div>
   );
@@ -318,17 +388,25 @@ export default function HotelDetail() {
   const buildAffiliateLinks = (targetHotel, sp) => {
     const name     = encodeURIComponent(targetHotel?.name || '');
     const city     = encodeURIComponent(targetHotel?.city || sp?.city || '');
+    const country  = encodeURIComponent(targetHotel?.country || '');
     const checkin  = sp?.checkin  || '';
     const checkout = sp?.checkout || '';
     const adults   = sp?.adults   || 2;
 
+    // Expedia needs MM/DD/YYYY format
+    const toExpediaDate = (d) => {
+      if (!d) return '';
+      const [y, m, day] = d.split('-');
+      return `${m}/${day}/${y}`;
+    };
+
     return {
-      booking: `https://www.booking.com/searchresults.html?aid=304142&ss=${name}&checkin=${checkin}&checkout=${checkout}&group_adults=${adults}&no_rooms=1`,
-      agoda:   `https://www.agoda.com/search?city=${city}&checkIn=${checkin}&checkOut=${checkout}&adults=${adults}&textToSearch=${name}`,
-      hotels:  `https://www.hotels.com/search.do?q-destination=${city}&q-check-in=${checkin}&q-check-out=${checkout}&q-rooms=1&q-room-0-adults=${adults}`,
-      trip:    `https://www.trip.com/hotels/list?city=${city}&checkin=${checkin}&checkout=${checkout}&adult=${adults}&keyword=${name}`,
-      expedia: `https://www.expedia.com/Hotel-Search?destination=${city}&startDate=${checkin}&endDate=${checkout}&adults=${adults}`,
-      tp:      `https://www.travelpayouts.com/hotels?destination=${city}&checkin=${checkin}&checkout=${checkout}&adults=${adults}`,
+      booking:   `https://www.booking.com/searchresults.html?aid=304142&ss=${name}+${country}&checkin=${checkin}&checkout=${checkout}&group_adults=${adults}&no_rooms=1`,
+      agoda:     `https://www.agoda.com/search?q=${name}&checkIn=${checkin}&checkOut=${checkout}&rooms=1&adults=${adults}`,
+      hotels:    `https://www.hotels.com/search.do?q-destination=${city}+${country}&q-check-in=${checkin}&q-check-out=${checkout}&q-rooms=1&q-room-0-adults=${adults}`,
+      trip:      `https://www.trip.com/hotels/list?city=${city}&checkin=${checkin}&checkout=${checkout}&adult=${adults}&keyword=${name}`,
+      expedia:   `https://www.expedia.com/Hotel-Search?destination=${city}+${country}&startDate=${toExpediaDate(checkin)}&endDate=${toExpediaDate(checkout)}&adults=${adults}`,
+      hotellook: `https://hotellook.com/search?destination=${city}&checkIn=${checkin}&checkOut=${checkout}&adults=${adults}&currency=usd`,
     };
   };
 
@@ -496,14 +574,14 @@ export default function HotelDetail() {
               </div>
             )}
 
-            {/* Who stays here */}
+            {/* Who stays here — derived dynamically from hotel attributes */}
             <div className="detail-section">
               <h2 className="detail-section-title">Who stays here</h2>
               <div className="detail-travellers-row">
-                {[{ type: 'Solo', pct: 29 }, { type: 'Business', pct: 27 }, { type: 'Couple', pct: 23 }, { type: 'Family', pct: 9 }, { type: 'Friends', pct: 5 }].map((t) => (
+                {deriveGuestMix(hotel).map((t) => (
                   <div key={t.type} className="detail-traveller-item">
-                    <span className="detail-traveller-icon">{TRAVELLER_ICONS[t.type.toLowerCase()] || '👤'}</span>
-                    <span className="detail-traveller-type">{t.type}</span>
+                    <span className="detail-traveller-icon">{t.icon}</span>
+                    <span className="detail-traveller-type">{t.type.toUpperCase()}</span>
                     <span className="detail-traveller-pct">{t.pct}%</span>
                   </div>
                 ))}
@@ -542,7 +620,7 @@ export default function HotelDetail() {
 
             {/* Affiliate booking panel */}
             <div className="detail-section" ref={affiliateRef}>
-              <AffiliatePanel links={affiliateLinks} hotelName={hotel.name} />
+              <AffiliatePanel links={affiliateLinks} hotelName={hotel.name} countryCode={hotel.countryCode || hotel.country} />
             </div>
           </>
         )}
@@ -573,7 +651,7 @@ export default function HotelDetail() {
                 <p style={{ fontSize: '0.82rem', color: 'var(--muted)', margin: '8px 0 16px' }}>
                   Check availability directly on a booking platform:
                 </p>
-                <AffiliatePanel links={affiliateLinks} hotelName={hotel.name} />
+                <AffiliatePanel links={affiliateLinks} hotelName={hotel.name} countryCode={hotel.countryCode || hotel.country} />
               </div>
             ) : (
               <div className="detail-rooms-list">
@@ -644,10 +722,10 @@ export default function HotelDetail() {
                   </div>
                 </div>
                 <div className="detail-travellers-row" style={{ marginTop: 24 }}>
-                  {[{ type: 'Solo', pct: 29 }, { type: 'Business', pct: 27 }, { type: 'Couple', pct: 23 }, { type: 'Family', pct: 9 }].map((t) => (
+                  {deriveGuestMix(hotel).slice(0, 4).map((t) => (
                     <div key={t.type} className="detail-traveller-item">
-                      <span className="detail-traveller-icon">{TRAVELLER_ICONS[t.type.toLowerCase()] || '👤'}</span>
-                      <span className="detail-traveller-type">{t.type}</span>
+                      <span className="detail-traveller-icon">{t.icon}</span>
+                      <span className="detail-traveller-type">{t.type.toUpperCase()}</span>
                       <span className="detail-traveller-pct">{t.pct}%</span>
                     </div>
                   ))}
