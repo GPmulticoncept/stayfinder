@@ -3,22 +3,7 @@ import { useSearchParams, useNavigate } from 'react-router-dom';
 import { searchHotels, getHotelRates } from '../services/liteapi';
 import HotelCard from '../components/HotelCard';
 import SearchBar from '../components/SearchBar';
-
-const SORT_OPTIONS = [
-  { value: 'recommended', label: 'Recommended' },
-  { value: 'price-asc',   label: 'Price ↑' },
-  { value: 'price-desc',  label: 'Price ↓' },
-  { value: 'rating',      label: 'Top Rated' },
-  { value: 'stars',       label: 'Stars' },
-];
-
-const SCORE_OPTIONS = [
-  { value: 0,   label: 'Any score' },
-  { value: 6,   label: '6.0+ Pleasant' },
-  { value: 7,   label: '7.0+ Good' },
-  { value: 8,   label: '8.0+ Fabulous' },
-  { value: 9,   label: '9.0+ Exceptional' },
-];
+import { useLanguage } from '../i18n/LanguageContext';
 
 function SkeletonCard() {
   return (
@@ -33,9 +18,18 @@ function SkeletonCard() {
   );
 }
 
+const SCORE_THRESHOLDS = [
+  { value: 0, labelKey: 'anyScore' },
+  { value: 6, label: '6.0+ Pleasant' },
+  { value: 7, label: '7.0+ Good' },
+  { value: 8, label: '8.0+ Fabulous' },
+  { value: 9, label: '9.0+ Exceptional' },
+];
+
 export default function SearchResults() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const { t }    = useLanguage();
 
   const city        = searchParams.get('city')        || '';
   const countryCode = searchParams.get('countryCode') || 'NG';
@@ -50,105 +44,60 @@ export default function SearchResults() {
   const [loadingRates, setLoadingRates] = useState(false);
   const [error,        setError]        = useState(null);
 
-  // Filter + sort + view state
-  const [sort,          setSort]          = useState('recommended');
-  const [view,          setView]          = useState('grid');
-  const [filterStars,   setFilterStars]   = useState([]);
-  const [filterScore,   setFilterScore]   = useState(0);
-  const [filterDrawer,  setFilterDrawer]  = useState(false);
+  const [sort,         setSort]         = useState('recommended');
+  const [view,         setView]         = useState('grid');
+  const [filterStars,  setFilterStars]  = useState([]);
+  const [filterScore,  setFilterScore]  = useState(0);
+  const [filterDrawer, setFilterDrawer] = useState(false);
+
+  const SORT_OPTIONS = [
+    { value: 'recommended', label: t('recommended') },
+    { value: 'price-asc',   label: t('priceAsc') },
+    { value: 'price-desc',  label: t('priceDesc') },
+    { value: 'rating',      label: t('topRated') },
+    { value: 'stars',       label: t('stars') },
+  ];
 
   useEffect(() => {
     if (!checkin || !checkout) { setLoading(false); return; }
-
     const run = async () => {
       try {
-        setLoading(true);
-        setError(null);
-        setHotels([]);
-        setRates({});
-
+        setLoading(true); setError(null); setHotels([]); setRates({});
         const hotelList = await searchHotels({ countryCode, cityName: city, limit: 30 });
         if (!hotelList || hotelList.length === 0) { setLoading(false); return; }
-
-        setHotels(hotelList);
-        setLoading(false);
-
+        setHotels(hotelList); setLoading(false);
         setLoadingRates(true);
         const hotelIds = hotelList.slice(0, 20).map((h) => h.id);
-        const rateData = await getHotelRates({
-          hotelIds, checkin, checkout, adults, currency,
-          guestNationality: countryCode,
-        });
-
+        const rateData = await getHotelRates({ hotelIds, checkin, checkout, adults, currency, guestNationality: countryCode });
         const rateMap = {};
-        if (Array.isArray(rateData)) {
-          rateData.forEach((r) => { if (r.hotelId) rateMap[r.hotelId] = r; });
-        }
-        setRates(rateMap);
-        setLoadingRates(false);
+        if (Array.isArray(rateData)) rateData.forEach((r) => { if (r.hotelId) rateMap[r.hotelId] = r; });
+        setRates(rateMap); setLoadingRates(false);
       } catch (err) {
-        console.error(err);
-        setError('Something went wrong. Please try again.');
-        setLoading(false);
-        setLoadingRates(false);
+        setError(t('somethingWrong')); setLoading(false); setLoadingRates(false);
       }
     };
-
     run();
   }, [city, countryCode, checkin, checkout, adults, currency]);
 
-  const toggleStar = (star) => {
-    setFilterStars((prev) =>
-      prev.includes(star) ? prev.filter((s) => s !== star) : [...prev, star]
-    );
-  };
-
-  const clearFilters = () => {
-    setFilterStars([]);
-    setFilterScore(0);
-    setSort('recommended');
-  };
-
+  const toggleStar = (star) => setFilterStars((prev) => prev.includes(star) ? prev.filter((s) => s !== star) : [...prev, star]);
+  const clearFilters = () => { setFilterStars([]); setFilterScore(0); setSort('recommended'); };
   const activeFilterCount = filterStars.length + (filterScore > 0 ? 1 : 0);
-
-  const getHotelPrice = (hotel) =>
-    rates[hotel.id]?.roomTypes?.[0]?.rates?.[0]?.retailRate?.total?.[0]?.amount;
+  const getHotelPrice = (hotel) => rates[hotel.id]?.roomTypes?.[0]?.rates?.[0]?.retailRate?.total?.[0]?.amount;
 
   const displayHotels = useMemo(() => {
     let filtered = [...hotels];
-
-    if (filterStars.length > 0) {
-      filtered = filtered.filter((h) => {
-        const s = Math.round(h.starRating || h.stars || 0);
-        return filterStars.includes(s);
-      });
-    }
-
-    if (filterScore > 0) {
-      filtered = filtered.filter((h) => {
-        const score = parseFloat(h.reviewScore || 0);
-        return score >= filterScore;
-      });
-    }
-
+    if (filterStars.length > 0) filtered = filtered.filter((h) => filterStars.includes(Math.round(h.starRating || h.stars || 0)));
+    if (filterScore > 0) filtered = filtered.filter((h) => parseFloat(h.reviewScore || 0) >= filterScore);
     filtered.sort((a, b) => {
       if (sort === 'price-asc' || sort === 'price-desc') {
-        const pa = parseFloat(getHotelPrice(a) || 0);
-        const pb = parseFloat(getHotelPrice(b) || 0);
-        if (!pa && !pb) return 0;
-        if (!pa) return 1;
-        if (!pb) return -1;
+        const pa = parseFloat(getHotelPrice(a) || 0), pb = parseFloat(getHotelPrice(b) || 0);
+        if (!pa && !pb) return 0; if (!pa) return 1; if (!pb) return -1;
         return sort === 'price-asc' ? pa - pb : pb - pa;
       }
-      if (sort === 'rating') {
-        return parseFloat(b.reviewScore || 0) - parseFloat(a.reviewScore || 0);
-      }
-      if (sort === 'stars') {
-        return (b.starRating || b.stars || 0) - (a.starRating || a.stars || 0);
-      }
+      if (sort === 'rating') return parseFloat(b.reviewScore || 0) - parseFloat(a.reviewScore || 0);
+      if (sort === 'stars')  return (b.starRating || b.stars || 0) - (a.starRating || a.stars || 0);
       return 0;
     });
-
     return filtered;
   }, [hotels, rates, filterStars, filterScore, sort]);
 
@@ -156,32 +105,20 @@ export default function SearchResults() {
 
   const FilterContent = () => (
     <>
-      {/* Sort */}
       <div className="sf-filter-group">
-        <p className="sf-filter-group-title">Sort By</p>
+        <p className="sf-filter-group-title">{t('sortBy').replace(':', '')}</p>
         {SORT_OPTIONS.map((opt) => (
           <label key={opt.value} className="sf-filter-option">
-            <input
-              type="radio"
-              name="sort"
-              checked={sort === opt.value}
-              onChange={() => setSort(opt.value)}
-            />
+            <input type="radio" name="sort" checked={sort === opt.value} onChange={() => setSort(opt.value)} />
             {opt.label}
           </label>
         ))}
       </div>
-
-      {/* Star Rating */}
       <div className="sf-filter-group">
-        <p className="sf-filter-group-title">Star Rating</p>
+        <p className="sf-filter-group-title">{t('starRating')}</p>
         {[5, 4, 3, 2, 1].map((star) => (
           <label key={star} className="sf-filter-option">
-            <input
-              type="checkbox"
-              checked={filterStars.includes(star)}
-              onChange={() => toggleStar(star)}
-            />
+            <input type="checkbox" checked={filterStars.includes(star)} onChange={() => toggleStar(star)} />
             <span className="sf-filter-stars">
               {Array.from({ length: 5 }).map((_, i) => (
                 <span key={i} className={i < star ? '' : 'sf-filter-stars-gray'}>★</span>
@@ -190,19 +127,12 @@ export default function SearchResults() {
           </label>
         ))}
       </div>
-
-      {/* Review Score */}
       <div className="sf-filter-group">
-        <p className="sf-filter-group-title">Guest Rating</p>
-        {SCORE_OPTIONS.map((opt) => (
+        <p className="sf-filter-group-title">{t('guestRating')}</p>
+        {SCORE_THRESHOLDS.map((opt) => (
           <label key={opt.value} className="sf-filter-option">
-            <input
-              type="radio"
-              name="score"
-              checked={filterScore === opt.value}
-              onChange={() => setFilterScore(opt.value)}
-            />
-            {opt.label}
+            <input type="radio" name="score" checked={filterScore === opt.value} onChange={() => setFilterScore(opt.value)} />
+            {opt.labelKey ? t(opt.labelKey) : opt.label}
           </label>
         ))}
       </div>
@@ -211,17 +141,12 @@ export default function SearchResults() {
 
   return (
     <div className="sf-results-page">
-
-      {/* Sticky Search Bar */}
       <div className="sf-results-sticky" style={{ paddingTop: '82px' }}>
-        <div className="container">
-          <SearchBar initialValues={spObj} compact />
-        </div>
+        <div className="container"><SearchBar initialValues={spObj} compact /></div>
       </div>
 
       {loading ? (
         <div className="sf-results-layout">
-          {/* Skeleton sidebar */}
           <div className="sf-filter-panel" style={{ minHeight: 300 }} />
           <div className="sf-results-main">
             <div className="sf-results-grid">
@@ -233,100 +158,72 @@ export default function SearchResults() {
         <div className="container">
           <div className="sf-empty-state">
             <span className="sf-empty-icon">⚠️</span>
-            <h3 className="sf-empty-title">Something went wrong</h3>
+            <h3 className="sf-empty-title">{t('somethingWrong')}</h3>
             <p className="sf-empty-text">{error}</p>
-            <button className="sf-empty-btn" onClick={() => navigate('/')}>Try Again</button>
+            <button className="sf-empty-btn" onClick={() => navigate('/')}>{t('tryAgain')}</button>
           </div>
         </div>
       ) : !checkin || !checkout ? (
         <div className="container">
           <div className="sf-empty-state">
             <span className="sf-empty-icon">🔍</span>
-            <h3 className="sf-empty-title">Start your search</h3>
-            <p className="sf-empty-text">Enter your destination, dates and guests above to find hotels.</p>
+            <h3 className="sf-empty-title">{t('startSearch')}</h3>
+            <p className="sf-empty-text">{t('enterDestination')}</p>
           </div>
         </div>
       ) : hotels.length === 0 ? (
         <div className="container">
           <div className="sf-empty-state">
             <span className="sf-empty-icon">🏨</span>
-            <h3 className="sf-empty-title">No hotels found{city ? ` in ${city}` : ''}</h3>
-            <p className="sf-empty-text">Try a different country or adjust your dates.</p>
-            <button className="sf-empty-btn" onClick={() => navigate('/')}>Search Again</button>
+            <h3 className="sf-empty-title">{t('noHotelsFound')}{city ? ` ${t('hotelsIn').split(' ').pop()} ${city}` : ''}</h3>
+            <p className="sf-empty-text">{t('tryDifferent')}</p>
+            <button className="sf-empty-btn" onClick={() => navigate('/')}>{t('searchAgain')}</button>
           </div>
         </div>
       ) : (
         <div className="sf-results-layout">
-
-          {/* ── Filter Sidebar (desktop) ── */}
           <aside className="sf-filter-panel">
             <div className="sf-filter-panel-header">
               <span className="sf-filter-panel-title">
-                🎛 Filters{activeFilterCount > 0 ? ` (${activeFilterCount})` : ''}
+                🎛 {t('filtersLabel').replace('🎛 ', '')}{activeFilterCount > 0 ? ` (${activeFilterCount})` : ''}
               </span>
               {activeFilterCount > 0 && (
-                <button className="sf-filter-clear" onClick={clearFilters}>Clear all</button>
+                <button className="sf-filter-clear" onClick={clearFilters}>{t('clearAll')}</button>
               )}
             </div>
             <FilterContent />
           </aside>
 
-          {/* ── Results Main ── */}
           <div className="sf-results-main">
-
-            {/* Toolbar */}
             <div className="sf-results-toolbar">
               <p className="sf-results-count">
-                <strong>{displayHotels.length}</strong> of {hotels.length} properties{city ? ` in ${city}` : ''}
-                {loadingRates && <span className="sf-results-fetching"> · Fetching prices…</span>}
+                <strong>{displayHotels.length}</strong> {t('of')} {hotels.length} {t('properties')}{city ? ` ${t('hotelsIn').split(' ').pop()} ${city}` : ''}
+                {loadingRates && <span className="sf-results-fetching"> · {t('fetchingPrices')}</span>}
               </p>
-
               <div className="sf-toolbar-right">
-                {/* Sort pills */}
                 <div className="sf-sort-wrap">
-                  <span className="sf-sort-label">Sort:</span>
+                  <span className="sf-sort-label">{t('sortBy')}</span>
                   <div className="sf-sort-pills">
                     {SORT_OPTIONS.map((opt) => (
-                      <button
-                        key={opt.value}
-                        className={`sf-sort-pill ${sort === opt.value ? 'active' : ''}`}
-                        onClick={() => setSort(opt.value)}
-                      >
+                      <button key={opt.value} className={`sf-sort-pill ${sort === opt.value ? 'active' : ''}`} onClick={() => setSort(opt.value)}>
                         {opt.label}
                       </button>
                     ))}
                   </div>
                 </div>
-
-                {/* View toggle */}
                 <div className="sf-view-toggle">
-                  <button
-                    className={`sf-view-btn ${view === 'grid' ? 'active' : ''}`}
-                    onClick={() => setView('grid')}
-                    aria-label="Grid view"
-                    title="Grid view"
-                  >
-                    ⊞
-                  </button>
-                  <button
-                    className={`sf-view-btn ${view === 'list' ? 'active' : ''}`}
-                    onClick={() => setView('list')}
-                    aria-label="List view"
-                    title="List view"
-                  >
-                    ☰
-                  </button>
+                  <button className={`sf-view-btn ${view === 'grid' ? 'active' : ''}`} onClick={() => setView('grid')} title="Grid view">⊞</button>
+                  <button className={`sf-view-btn ${view === 'list' ? 'active' : ''}`} onClick={() => setView('list')} title="List view">☰</button>
                 </div>
               </div>
             </div>
 
-            {/* Hotel Cards */}
             {displayHotels.length === 0 ? (
               <div className="sf-empty-state">
                 <span className="sf-empty-icon">🔍</span>
-                <h3 className="sf-empty-title">No results match your filters</h3>
-                <p className="sf-empty-text">Try removing some filters to see more hotels.</p>
-                <button className="sf-empty-btn" onClick={clearFilters}>Clear Filters</button>
+                <h3 className="sf-empty-title">{t('noResultsMatch')}</h3>
+                <p className="sf-empty-text">{t('tryRemovingFilters')}</p>
+                <button className="sf-empty-btn" onClick={clearFilters}>{t('clearFilters')}</button>
               </div>
             ) : (
               <div className={view === 'grid' ? 'sf-results-grid' : 'sf-results-list'}>
@@ -346,39 +243,27 @@ export default function SearchResults() {
         </div>
       )}
 
-      {/* ── Mobile Filter FAB ── */}
       {!loading && hotels.length > 0 && (
-        <button
-          className="sf-filter-fab"
-          style={{ display: 'flex' }}
-          onClick={() => setFilterDrawer(true)}
-        >
-          🎛 Filters & Sort
+        <button className="sf-filter-fab" style={{ display: 'flex' }} onClick={() => setFilterDrawer(true)}>
+          🎛 {t('filterSort').replace('🎛 ', '')}
           {activeFilterCount > 0 && <span className="active-count">{activeFilterCount}</span>}
         </button>
       )}
 
-      {/* ── Mobile Filter Drawer ── */}
-      <div
-        className={`sf-filter-overlay ${filterDrawer ? 'open' : ''}`}
-        onClick={() => setFilterDrawer(false)}
-      />
+      <div className={`sf-filter-overlay ${filterDrawer ? 'open' : ''}`} onClick={() => setFilterDrawer(false)} />
       <div className={`sf-filter-drawer ${filterDrawer ? 'open' : ''}`}>
         <div className="sf-filter-drawer-header">
-          <span className="sf-filter-drawer-title">Filters &amp; Sort</span>
+          <span className="sf-filter-drawer-title">{t('filterSort')}</span>
           <button className="sf-filter-drawer-close" onClick={() => setFilterDrawer(false)}>✕</button>
         </div>
-        <div className="sf-filter-drawer-body">
-          <FilterContent />
-        </div>
+        <div className="sf-filter-drawer-body"><FilterContent /></div>
         <div className="sf-filter-drawer-footer">
-          <button className="sf-filter-reset-btn" onClick={clearFilters}>Reset</button>
+          <button className="sf-filter-reset-btn" onClick={clearFilters}>{t('reset')}</button>
           <button className="sf-filter-apply-btn" onClick={() => setFilterDrawer(false)}>
-            Show {displayHotels.length} results
+            {t('showResults')} {displayHotels.length} {t('results')}
           </button>
         </div>
       </div>
-
     </div>
   );
 }

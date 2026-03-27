@@ -1,14 +1,18 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link, useLocation } from 'react-router-dom';
+import { useLanguage } from '../i18n/LanguageContext';
 
 const WHATSAPP_NUMBER = '2347034542773';
 const WHATSAPP_MSG = encodeURIComponent('Hello, I would like to list my property on StayFinder.');
 
 export default function Header() {
-  const [scrolled, setScrolled] = useState(false);
-  const [drawerOpen, setDrawerOpen] = useState(false);
-  const location = useLocation();
-  const isHome = location.pathname === '/';
+  const [scrolled,    setScrolled]    = useState(false);
+  const [drawerOpen,  setDrawerOpen]  = useState(false);
+  const [langOpen,    setLangOpen]    = useState(false);
+  const location   = useLocation();
+  const isHome     = location.pathname === '/';
+  const langRef    = useRef(null);
+  const { lang, setLang, t, meta } = useLanguage();
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 40);
@@ -17,7 +21,15 @@ export default function Header() {
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
 
-  // Always solid on non-home pages
+  // Close lang dropdown on outside click
+  useEffect(() => {
+    const handler = (e) => {
+      if (langRef.current && !langRef.current.contains(e.target)) setLangOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
   const solid = scrolled || !isHome;
 
   const handleListProperty = () => {
@@ -25,6 +37,9 @@ export default function Header() {
   };
 
   const closeDrawer = () => setDrawerOpen(false);
+
+  const currentMeta = meta[lang];
+  const LANG_CODES = Object.keys(meta);
 
   return (
     <>
@@ -39,15 +54,45 @@ export default function Header() {
 
           {/* Desktop Nav */}
           <nav className="sf-nav">
-            <Link to="/" className="sf-nav-link">Home</Link>
-            <a href="/#destinations" className="sf-nav-link">Destinations</a>
-            <a href="/#features" className="sf-nav-link">Why Us</a>
+            <Link to="/" className="sf-nav-link">{t('home')}</Link>
+            <a href="/#destinations" className="sf-nav-link">{t('destinations')}</a>
+            <a href="/#features" className="sf-nav-link">{t('whyUs')}</a>
           </nav>
 
           {/* Desktop Right */}
           <div className="sf-header-right">
+
+            {/* Language Switcher */}
+            <div className="sf-lang-wrap" ref={langRef}>
+              <button
+                className={`sf-lang-btn ${solid ? 'sf-lang-btn--solid' : 'sf-lang-btn--transparent'}`}
+                onClick={() => setLangOpen((v) => !v)}
+                aria-label="Change language"
+              >
+                <span className="sf-lang-flag">{currentMeta?.flag}</span>
+                <span className="sf-lang-code">{lang.toUpperCase()}</span>
+                <span className="sf-lang-arrow">{langOpen ? '▲' : '▼'}</span>
+              </button>
+
+              {langOpen && (
+                <div className="sf-lang-dropdown">
+                  {LANG_CODES.map((code) => (
+                    <button
+                      key={code}
+                      className={`sf-lang-option ${lang === code ? 'active' : ''}`}
+                      onClick={() => { setLang(code); setLangOpen(false); }}
+                    >
+                      <span className="sf-lang-option-flag">{meta[code].flag}</span>
+                      <span className="sf-lang-option-name">{meta[code].nativeName}</span>
+                      {lang === code && <span className="sf-lang-option-check">✓</span>}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
             <button className="sf-list-btn" onClick={handleListProperty}>
-              🏠 List Your Property
+              🏠 {t('listProperty')}
             </button>
 
             {/* Mobile hamburger */}
@@ -56,9 +101,7 @@ export default function Header() {
               onClick={() => setDrawerOpen((v) => !v)}
               aria-label="Toggle menu"
             >
-              <span />
-              <span />
-              <span />
+              <span /><span /><span />
             </button>
           </div>
 
@@ -83,19 +126,36 @@ export default function Header() {
 
         <nav className="sf-drawer-nav">
           <Link to="/" className="sf-drawer-link" onClick={closeDrawer}>
-            🏠 <span>Home</span>
+            🏠 <span>{t('home')}</span>
           </Link>
           <a href="/#destinations" className="sf-drawer-link" onClick={closeDrawer}>
-            🌍 <span>Destinations</span>
+            🌍 <span>{t('destinations')}</span>
           </a>
           <a href="/#features" className="sf-drawer-link" onClick={closeDrawer}>
-            ⭐ <span>Why StayFinder</span>
+            ⭐ <span>{t('whyUs')}</span>
           </a>
+
+          {/* Language options in drawer */}
+          <div className="sf-drawer-lang-section">
+            <p className="sf-drawer-lang-title">🌐 Language</p>
+            <div className="sf-drawer-lang-grid">
+              {LANG_CODES.map((code) => (
+                <button
+                  key={code}
+                  className={`sf-drawer-lang-btn ${lang === code ? 'active' : ''}`}
+                  onClick={() => { setLang(code); closeDrawer(); }}
+                >
+                  <span>{meta[code].flag}</span>
+                  <span>{meta[code].nativeName}</span>
+                </button>
+              ))}
+            </div>
+          </div>
         </nav>
 
         <div className="sf-drawer-footer">
           <button className="sf-drawer-list-btn" onClick={() => { handleListProperty(); closeDrawer(); }}>
-            🏠 List Your Property
+            🏠 {t('listProperty')}
           </button>
         </div>
       </div>
